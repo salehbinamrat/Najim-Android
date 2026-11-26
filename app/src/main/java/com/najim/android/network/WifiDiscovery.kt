@@ -81,24 +81,11 @@ class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> U
             return
         }
         val state = try {
-            snapshot(cm)
+            WifiNetworkResolver.capture(cm).state
         } catch (_: RuntimeException) {
             DiscoveryState.Unavailable
         }
         publish(state)
     }
 
-    @Suppress("DEPRECATION") // API 24: include Wi-Fi even when cellular is the default network.
-    private fun snapshot(cm: ConnectivityManager): DiscoveryState {
-        val activeId = cm.activeNetwork?.networkHandle
-        val links = cm.allNetworks.mapNotNull { network ->
-            val caps = cm.getNetworkCapabilities(network) ?: return@mapNotNull null
-            if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return@mapNotNull null
-            val gateways = cm.getLinkProperties(network)?.routes.orEmpty()
-                .mapNotNull { route -> usableIpv4Gateway(route.isDefaultRoute, route.gateway) }
-            WifiLink(network.networkHandle, gateways)
-        }
-        return WifiSelector.select(links, activeId)
-    }
 }
