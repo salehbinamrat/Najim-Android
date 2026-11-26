@@ -22,3 +22,10 @@ RouterOS reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hot
 - 13 regression tests cover routing checks, redirection, size bounds, credential encoding flow, failures and cleanup.
 - Pending 02B2: validated portal form and fresh CHAP parsing, user consent for legacy HTTP, session verification against the intended account, actual login UI with cancellation and field validation. A changed network after transmission means the remote outcome is unknown, not proof that login was cancelled.
 - Previous API errors are avoided through API 23+ network APIs, keeping minSdk 24. No added library or disabled checks.
+
+## Phase 02B2a — offline portal and session evidence policy
+- Use Jsoup 1.24.1 (pinned, no runtime dependencies) for real HTML parsing, not script execution or resource requests. Enable NIO core library desugaring 2.1.5 per jsoup Android requirements; minSdk remains 24. References: https://jsoup.org/download and https://developer.android.com/studio/write/java11-nio-support-table.
+- Parse bounded UTF-8 HTTP 200 documents only, from the selected origin and expected path. Validate local POST action. Reject base overrides, refresh, external actions, ambiguous forms and unsupported login scripts. Extract the stock octal CHAP expression without executing it; malformed or unfamiliar scripts never imply PAP fallback.
+- Status evidence requires same-origin logout and explicit exact account identity; conflicting evidence is unknown. Existing or unknown baseline cannot establish a new session. Matching status is evidence only, not independent proof of server identity or a causal login.
+- 19 parser and 6 session policy tests; no actual network I/O in these tests. Current restrictions intentionally reject many customized forms and non-UTF-8 portals. Do not claim universal portal compatibility.
+- Next: integrate fresh bounded GET /login and /status, explicit HTTPS/legacy HTTP consent, verified route/origin, no credential retry, and UI lifecycle. HTTP remains disabled and no login UI is active. Field verification required.
