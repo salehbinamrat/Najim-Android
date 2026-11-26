@@ -29,7 +29,8 @@ jobs:
           sdkmanager --version
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
-      - run: gradle :app:testDebugUnitTest :app:lintDebug --stacktrace
+      - name: Run unit tests and lint
+        run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
   release:
     name: Android Release Preflight
     runs-on: ubuntu-latest
@@ -52,8 +53,10 @@ jobs:
           sdkmanager --version
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
-      - run: gradle :app:testDebugUnitTest :app:lintDebug --stacktrace
-      - run: gradle :app:assembleDebug --stacktrace
+      - name: Run unit tests and lint
+        run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
+      - name: Assemble debug APK after verification
+        run: bash .github/scripts/gradle-ci.sh :app:assembleDebug
       - run: |
           cd app/build/outputs/apk/debug
           sha256sum app-debug.apk > SHA256SUMS.txt
