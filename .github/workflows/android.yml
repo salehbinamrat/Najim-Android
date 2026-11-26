@@ -19,7 +19,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Provision Android SDK and accept licenses
+        uses: android-actions/setup-android@v4.0.3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Verify Android SDK prerequisites
+        run: |
+          command -v sdkmanager
+          sdkmanager --version
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - run: gradle :app:testDebugUnitTest :app:lintDebug --stacktrace
   release:
     name: Android Release Preflight
@@ -33,7 +42,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Provision Android SDK and accept licenses
+        uses: android-actions/setup-android@v4.0.3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Verify Android SDK prerequisites
+        run: |
+          command -v sdkmanager
+          sdkmanager --version
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - run: gradle :app:testDebugUnitTest :app:lintDebug --stacktrace
       - run: gradle :app:assembleDebug --stacktrace
       - run: |
