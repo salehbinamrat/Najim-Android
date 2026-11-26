@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">نجم الإنترنت</string>
+    <string name="foundation_notice">المرحلة التأسيسية — فحص الإدخال محليا فقط. الاتصال بالشبكة غير مفعل بعد.</string>
+    <string name="voucher_label">رقم الكرت أو اسم المستخدم</string>
+    <string name="check_input">فحص صيغة الإدخال</string>
+    <string name="error_empty">يرجى إدخال رقم الكرت</string>
+    <string name="error_whitespace">لا يسمح بالمسافات</string>
+    <string name="error_control">يتضمن الإدخال رموز تحكم غير مسموحة</string>
+    <string name="error_length">الإدخال أطول من الحد المبدئي</string>
+    <string name="format_valid">صيغة الإدخال مقبولة محليا. لم يتم التحقق من صلاحية الكرت لدى الشبكة.</string>
+</resources>
