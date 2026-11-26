@@ -8,7 +8,6 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Handler
 import android.os.Looper
-import java.net.Inet4Address
 
 /** Read-only route discovery. Does not perform requests or bind the process. Main-thread lifecycle. */
 class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> Unit) {
@@ -40,7 +39,10 @@ class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> U
         val cm = manager
         if (cm != null) {
             try {
-                val request = NetworkRequest.Builder().clearCapabilities()
+                val request = NetworkRequest.Builder()
+                    // API 21-compatible; do not require INTERNET or VALIDATED.
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
                     .addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
                 cm.registerNetworkCallback(request, wifiListener)
                 wifiRegistered = true
@@ -94,12 +96,7 @@ class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> U
             if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return@mapNotNull null
             val gateways = cm.getLinkProperties(network)?.routes.orEmpty()
-                .filter { it.isDefaultRoute && it.hasGateway() }
-                .mapNotNull { route ->
-                    (route.gateway as? Inet4Address)?.takeUnless {
-                        it.isAnyLocalAddress || it.isLoopbackAddress || it.isMulticastAddress
-                    }?.hostAddress
-                }
+                .mapNotNull { route -> usableIpv4Gateway(route.isDefaultRoute, route.gateway) }
             WifiLink(network.networkHandle, gateways)
         }
         return WifiSelector.select(links, activeId)

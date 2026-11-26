@@ -1,5 +1,8 @@
 package com.najim.android.network
 
+import java.net.InetAddress
+import java.net.Inet4Address
+
 sealed interface DiscoveryState {
     data object NoWifi : DiscoveryState
     data object AmbiguousWifi : DiscoveryState
@@ -25,4 +28,12 @@ internal object WifiSelector {
             else -> DiscoveryState.AmbiguousGateway
         }
     }
+}
+
+/** No RouteInfo.hasGateway() dependency; API 21 route getters are sufficient. */
+internal fun usableIpv4Gateway(isDefault: Boolean, address: InetAddress?): String? {
+    if (!isDefault || address !is Inet4Address) return null
+    if (address.isAnyLocalAddress || address.isLoopbackAddress || address.isMulticastAddress) return null
+    if (address.address.all { it.toInt() == -1 }) return null
+    return address.hostAddress
 }
