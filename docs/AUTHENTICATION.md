@@ -13,3 +13,12 @@ RouterOS reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hot
 - Phase 02B remains required: parse trusted gateway login forms and fresh challenge, revalidate exact Wi-Fi network before I/O, use Network-bound transport (API 23+), TLS verification without trust bypass, explicit insecure transport consent UI, bounded response, no automatic retry, and verify the requested session independently. Domain-based and customized portals require a separate safe validation design.
 - A network change cancels the attempt; session verification and real RouterOS 6/7 tests are not claimed here.
 - Keep minSdk 24, no new dependencies, CI SDK prerequisites, rate-limit retry, unit tests, lint and diagnostic artifacts. Do not merge without both exact-head CI jobs succeeding.
+
+## Phase 02B1 — network-bound HTTPS transport
+- Shared Android route resolver used by discovery and transport. VPN active, missing or changed Wi-Fi/gateway, or ambiguous selection stops the attempt.
+- Android Network.openConnection(URL, Proxy.NO_PROXY) is available from API 23. No process-wide binding, external connectivity probe, system DNS fallback, trust bypass or automatic application-level retry.
+- HTTPS only, fixed /login at selected gateway IP, redirects disabled, 5-second connect/read timeouts, 64 KiB response limit. HTTP remains disabled in manifest; no UI invokes the transport yet. TLS certificate validation can reject IP-based portals without a matching certificate; no silent fallback.
+- INTERNET permission enables the future transport, not automatic communication. Unit tests use fake connections only.
+- 13 regression tests cover routing checks, redirection, size bounds, credential encoding flow, failures and cleanup.
+- Pending 02B2: validated portal form and fresh CHAP parsing, user consent for legacy HTTP, session verification against the intended account, actual login UI with cancellation and field validation. A changed network after transmission means the remote outcome is unknown, not proof that login was cancelled.
+- Previous API errors are avoided through API 23+ network APIs, keeping minSdk 24. No added library or disabled checks.
