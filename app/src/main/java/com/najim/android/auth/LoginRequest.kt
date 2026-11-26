@@ -87,7 +87,7 @@ internal object LoginRequest {
 
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
 
-    private fun isGateway(value: String): Boolean {
+    internal fun isGateway(value: String): Boolean {
         val parts = value.split('.')
         if (parts.size != 4) return false
         val octets = parts.map { part ->

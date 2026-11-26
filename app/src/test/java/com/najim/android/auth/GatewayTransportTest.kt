@@ -133,4 +133,23 @@ class GatewayTransportTest {
         val result = transport(FakeConnection(403)).submit(wifi, request) as ExchangeResult.Received
         assertEquals(LoginOutcome.HttpFailure(403), result.outcome)
     }
+    @Test fun getStatusUsesFixedEndpointWithoutCredentials() {
+        val connection = FakeConnection()
+        val transport = GatewayTransport({ true }, { selected, endpoint ->
+            assertEquals(wifi, selected)
+            assertEquals("https://10.0.3.1/status", endpoint.toString())
+            connection
+        })
+        assertTrue(transport.read(wifi, GatewayPage.STATUS) is ExchangeResult.Received)
+        assertEquals("GET", connection.requestMethod)
+        assertFalse(connection.doOutput)
+        assertEquals(0, connection.sent.size())
+        assertTrue(connection.closed)
+    }
+
+    @Test fun getLoginRejectsInvalidGatewayBeforeOpening() {
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") })
+        assertEquals(ExchangeResult.UnsupportedEndpoint,
+            transport.read(wifi.copy(gateway = "evil.test"), GatewayPage.LOGIN))
+    }
 }

@@ -29,3 +29,9 @@ RouterOS reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hot
 - Status evidence requires same-origin logout and explicit exact account identity; conflicting evidence is unknown. Existing or unknown baseline cannot establish a new session. Matching status is evidence only, not independent proof of server identity or a causal login.
 - 19 parser and 6 session policy tests; no actual network I/O in these tests. Current restrictions intentionally reject many customized forms and non-UTF-8 portals. Do not claim universal portal compatibility.
 - Next: integrate fresh bounded GET /login and /status, explicit HTTPS/legacy HTTP consent, verified route/origin, no credential retry, and UI lifecycle. HTTP remains disabled and no login UI is active. Field verification required.
+
+## Phase 02B2b — HTTPS orchestration
+- Shared bounded GET and POST transport. GET allowed only for fixed local HTTPS /login and /status; no default route, arbitrary URL, cookies managed by application, external probe, redirect following or trust override.
+- Explicit logged-out baseline: same-origin /status redirect to /login, never followed. Existing account or ambiguous status stops before transmission. Fresh supported login form required; HTTPS PAP only. Unknown/custom or CHAP forms stop without downgrade.
+- Submit once, then independently fetch /status and compare exact normalized requested account on the selected Wi-Fi. Missing/changed network or transport failure after POST gives unknown session, never retries automatically. Matching status is evidence only, not proof of internet access.
+- 15 new sequence tests using fake transport; GET transport tests cover no body and fixed endpoints. No UI invokes this sequence yet. Legacy HTTP/CHAP consent and transport, cancellation UI and field tests remain pending. Manifest cleartext remains disabled; IP-based HTTPS requires valid matching certificate. No new dependencies.

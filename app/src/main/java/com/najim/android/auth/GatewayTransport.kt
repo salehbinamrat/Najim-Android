@@ -14,7 +14,7 @@ internal sealed interface ExchangeResult {
     data object TransportFailure : ExchangeResult
 
     /** Contains portal content that may include credentials or personal information; never log it. */
-    class Received(val statusCode: Int, val body: ByteArray) : ExchangeResult {
+    class Received(val statusCode: Int, val body: ByteArray, val location: String? = null) : ExchangeResult {
         val outcome: LoginOutcome get() = LoginResponsePolicy.classify(statusCode)
         override fun toString() = "GatewayResponse(status=$statusCode, body=redacted)"
     }
@@ -27,33 +27,45 @@ internal class GatewayTransport(
 ) {
     fun submit(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
         if (request.networkId != selected.networkId ||
-            request.endpoint.scheme != "https" ||
-            request.endpoint.host != selected.gateway ||
-            request.endpoint.rawUserInfo != null ||
-            request.endpoint.port != -1 ||
-            request.endpoint.rawPath != "/login" ||
-            request.endpoint.rawQuery != null ||
-            request.endpoint.rawFragment != null) return ExchangeResult.UnsupportedEndpoint
+            !validEndpoint(selected, request.endpoint, "/login")) return ExchangeResult.UnsupportedEndpoint
+        return exchange(selected, request.endpoint, request.formBody)
+    }
 
+    fun read(selected: DiscoveryState.Ready, page: GatewayPage): ExchangeResult {
+        if (!LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
+        val endpoint = URI("https", null, selected.gateway, -1, page.path, null, null)
+        return exchange(selected, endpoint, null)
+    }
+
+    private fun validEndpoint(selected: DiscoveryState.Ready, endpoint: URI, path: String): Boolean =
+        LoginRequest.isGateway(selected.gateway) && endpoint.scheme == "https" &&
+            endpoint.host == selected.gateway && endpoint.rawUserInfo == null &&
+            endpoint.port == -1 && endpoint.rawPath == path &&
+            endpoint.rawQuery == null && endpoint.rawFragment == null
+
+    private fun exchange(selected: DiscoveryState.Ready, endpoint: URI, formBody: String?): ExchangeResult {
         var connection: HttpURLConnection? = null
-        val bytes = request.formBody.toByteArray(Charsets.UTF_8)
+        val bytes = formBody?.toByteArray(Charsets.UTF_8)
         try {
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
-            val target = openBound(selected, request.endpoint) ?: return ExchangeResult.NetworkChanged
+            val target = openBound(selected, endpoint) ?: return ExchangeResult.NetworkChanged
             connection = target
             target.instanceFollowRedirects = false
             target.useCaches = false
             target.connectTimeout = 5000
             target.readTimeout = 5000
-            target.requestMethod = "POST"
-            target.doOutput = true
-            target.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-            target.setRequestProperty("Cache-Control", "no-store")
-            target.setFixedLengthStreamingMode(bytes.size)
+            target.requestMethod = if (bytes == null) "GET" else "POST"
+            target.setRequestProperty("Cache-Control", "no-store, no-cache")
+            target.setRequestProperty("Accept", "text/html")
+            if (bytes != null) {
+                target.doOutput = true
+                target.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                target.setFixedLengthStreamingMode(bytes.size)
+            }
 
-            // Verify again before handing the request body to the Wi-Fi-bound connection.
+            // Revalidate immediately before any network I/O.
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
-            target.outputStream.use { output -> output.write(bytes) }
+            if (bytes != null) target.outputStream.use { output -> output.write(bytes) }
             val status = target.responseCode
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
 
@@ -66,13 +78,13 @@ internal class GatewayTransport(
                 limited ?: return ExchangeResult.ResponseTooLarge
             }
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
-            return ExchangeResult.Received(status, body)
+            return ExchangeResult.Received(status, body, target.getHeaderField("Location"))
         } catch (_: IOException) {
             return ExchangeResult.TransportFailure
         } catch (_: SecurityException) {
             return ExchangeResult.TransportFailure
         } finally {
-            bytes.fill(0)
+            bytes?.fill(0)
             connection?.disconnect()
         }
     }
@@ -93,3 +105,5 @@ internal class GatewayTransport(
         const val MAX_RESPONSE_BYTES = 64 * 1024
     }
 }
+
+internal enum class GatewayPage(val path: String) { LOGIN("/login"), STATUS("/status") }
