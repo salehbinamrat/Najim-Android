@@ -131,4 +131,28 @@ class GatewayLoginFlowTest {
         assertEquals(GatewayLoginResult.TRANSPORT_UNAVAILABLE, f.run())
         assertEquals(listOf("STATUS"), f.calls)
     }
+    @Test fun explicitRadiusTimeoutIsNotExpiredVoucher() {
+        val f = Fixture(wifi, listOf(loggedOut, login), html(loginHtml + "<p class='info alert'>RADIUS timeout</p>"))
+        assertEquals(GatewayLoginResult.ROUTER_RADIUS_TIMEOUT, f.run())
+        assertEquals(listOf("STATUS", "LOGIN", "POST"), f.calls)
+    }
+
+    @Test fun explicitDataAndTimeLimitsAreDistinct() {
+        val data = Fixture(wifi, listOf(loggedOut, login), html(loginHtml + "<p class='error'>transfer limit reached</p>"))
+        val time = Fixture(wifi, listOf(loggedOut, login), html(loginHtml + "<p class='error'>no more online time</p>"))
+        assertEquals(GatewayLoginResult.ROUTER_DATA_LIMIT, data.run())
+        assertEquals(GatewayLoginResult.ROUTER_TIME_LIMIT, time.run())
+    }
+
+    @Test fun changedNetworkDoesNotPublishStaleRouterError() {
+        val f = Fixture(wifi, listOf(loggedOut, login), html(loginHtml + "<p class='error'>account expired</p>"))
+        f.onSubmit = { f.state = DiscoveryState.NoWifi }
+        assertEquals(GatewayLoginResult.SESSION_UNVERIFIED, f.run())
+    }
+
+    @Test fun incidentalWordsDoNotOverrideAccountStatus() {
+        val f = Fixture(wifi, listOf(loggedOut, login, status("00Ab")), html("<script>var error = 'account expired';</script>"))
+        assertEquals(GatewayLoginResult.MATCHING_SESSION, f.run())
+        assertEquals(listOf("STATUS", "LOGIN", "POST", "STATUS"), f.calls)
+    }
 }

@@ -41,4 +41,15 @@
     <string name="login_unverified">تعذر تأكيد نتيجة الدخول. قد يكون الطلب وصل. تحقق من الجلسة قبل إعادة المحاولة.</string>
     <string name="login_matching">أظهرت البوابة جلسة مطابقة للحساب عبر HTTPS. لم يتم اختبار توفر الإنترنت.</string>
     <string name="login_legacy_matching">أظهرت البوابة جلسة مطابقة للحساب عبر اتصال غير مشفر. لا يمكن تأكيد هوية البوابة أو توفر الإنترنت.</string>
+    <string name="router_user_not_found">رقم الكرت أو اسم المستخدم غير موجود</string>
+    <string name="router_invalid_password">كلمة المرور غير صحيحة</string>
+    <string name="router_invalid_credentials">اسم المستخدم أو كلمة المرور غير صحيحة</string>
+    <string name="router_data_limit">وصل الكرت إلى حد البيانات المسموح به</string>
+    <string name="router_time_limit">وصل الكرت إلى حد وقت الاستخدام</string>
+    <string name="router_account_expired">انتهت صلاحية الحساب</string>
+    <string name="router_session_limit">الكرت مستخدم في جهاز آخر أو بلغ حد الجلسات المسموح</string>
+    <string name="router_already_logged_in">الكرت مستخدم حاليا</string>
+    <string name="router_device_restricted">الجهاز مرفوض بسبب قيد على عنوان الجهاز</string>
+    <string name="router_radius_timeout">الحساب لم يستجب، ولا يعني ذلك انتهاء الكرت</string>
+    <string name="router_no_valid_profile">لا توجد باقة صالحة حاليا</string>
 </resources>

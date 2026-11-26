@@ -6,7 +6,18 @@ import java.net.URI
 internal enum class GatewayLoginResult {
     INVALID_INPUT, NETWORK_CHANGED, INSECURE_HTTP_NOT_APPROVED, ALREADY_CONNECTED, BASELINE_UNKNOWN,
     UNSUPPORTED_PORTAL, REQUEST_REJECTED, TRANSPORT_UNAVAILABLE,
-    ACCOUNT_MISMATCH, SESSION_UNVERIFIED, MATCHING_SESSION, LEGACY_MATCHING_SESSION
+    ACCOUNT_MISMATCH, SESSION_UNVERIFIED, MATCHING_SESSION, LEGACY_MATCHING_SESSION,
+    ROUTER_USER_NOT_FOUND,
+    ROUTER_INVALID_PASSWORD,
+    ROUTER_INVALID_CREDENTIALS,
+    ROUTER_DATA_LIMIT,
+    ROUTER_TIME_LIMIT,
+    ROUTER_ACCOUNT_EXPIRED,
+    ROUTER_SESSION_LIMIT,
+    ROUTER_ALREADY_LOGGED_IN,
+    ROUTER_DEVICE_RESTRICTED,
+    ROUTER_RADIUS_TIMEOUT,
+    ROUTER_NO_VALID_PROFILE
 }
 
 /**
@@ -52,8 +63,9 @@ internal class GatewayLoginFlow(
         val posted = submit(selected, prepared)
         // A request can reach the gateway even if its response is lost. Never auto-retry.
         if (posted !is ExchangeResult.Received) return GatewayLoginResult.SESSION_UNVERIFIED
-        if (posted.statusCode !in 200..399) return GatewayLoginResult.REQUEST_REJECTED
         if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
+        RouterErrorParser.parse(origin, posted)?.let { return it }
+        if (posted.statusCode !in 200..399) return GatewayLoginResult.REQUEST_REJECTED
 
         // Independent local status fetch; never follow the POST redirect.
         val after = read(selected, GatewayPage.STATUS)

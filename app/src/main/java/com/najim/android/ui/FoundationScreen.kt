@@ -135,6 +135,17 @@ private fun resultMessage(result: GatewayLoginResult): Int = when (result) {
     GatewayLoginResult.SESSION_UNVERIFIED -> R.string.login_unverified
     GatewayLoginResult.MATCHING_SESSION -> R.string.login_matching
     GatewayLoginResult.LEGACY_MATCHING_SESSION -> R.string.login_legacy_matching
+    GatewayLoginResult.ROUTER_USER_NOT_FOUND -> R.string.router_user_not_found
+    GatewayLoginResult.ROUTER_INVALID_PASSWORD -> R.string.router_invalid_password
+    GatewayLoginResult.ROUTER_INVALID_CREDENTIALS -> R.string.router_invalid_credentials
+    GatewayLoginResult.ROUTER_DATA_LIMIT -> R.string.router_data_limit
+    GatewayLoginResult.ROUTER_TIME_LIMIT -> R.string.router_time_limit
+    GatewayLoginResult.ROUTER_ACCOUNT_EXPIRED -> R.string.router_account_expired
+    GatewayLoginResult.ROUTER_SESSION_LIMIT -> R.string.router_session_limit
+    GatewayLoginResult.ROUTER_ALREADY_LOGGED_IN -> R.string.router_already_logged_in
+    GatewayLoginResult.ROUTER_DEVICE_RESTRICTED -> R.string.router_device_restricted
+    GatewayLoginResult.ROUTER_RADIUS_TIMEOUT -> R.string.router_radius_timeout
+    GatewayLoginResult.ROUTER_NO_VALID_PROFILE -> R.string.router_no_valid_profile
 }
 
 @Composable
