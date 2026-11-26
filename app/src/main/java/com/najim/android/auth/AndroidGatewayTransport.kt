@@ -22,16 +22,17 @@ internal class AndroidGatewayTransport(context: Context) {
     /** Protocol and consent are scoped to this invocation; do not persist or infer consent. */
     fun login(
         selected: DiscoveryState.Ready, username: String, password: String?,
-        protocol: LoginProtocol = LoginProtocol.HTTPS_PAP, allowInsecureHttp: Boolean = false
+        protocol: LoginProtocol = LoginProtocol.HTTPS_PAP, allowInsecureHttp: Boolean = false,
+        cancelled: () -> Boolean = { false }
     ): GatewayLoginResult {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
         if (protocol.requiresConsent && !allowInsecureHttp) {
             return GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED
         }
         val transport = GatewayTransport(
-            stillSelected = { resolve(it) != null },
+            stillSelected = { !cancelled() && resolve(it) != null },
             openBound = { expected, endpoint ->
-                val network = resolve(expected)
+                val network = if (cancelled()) null else resolve(expected)
                 // No DNS fallback, no proxy, no custom trust manager or hostname verifier.
                 val connection = network?.openConnection(endpoint.toURL(), Proxy.NO_PROXY)
                 when (protocol) {
@@ -46,7 +47,7 @@ internal class AndroidGatewayTransport(context: Context) {
         return GatewayLoginFlow(
             read = transport::read,
             submit = transport::submit,
-            current = { if (resolve(selected) != null) selected else DiscoveryState.Unavailable },
+            current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
             protocol = protocol,
             allowInsecureHttp = allowInsecureHttp
         ).login(selected, username, password)
