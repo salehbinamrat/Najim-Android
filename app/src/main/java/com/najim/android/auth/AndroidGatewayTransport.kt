@@ -32,4 +32,13 @@ internal class AndroidGatewayTransport(context: Context) {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
         return transport.submit(selected, request)
     }
+    /** Complete HTTPS login sequence; call only from a worker after explicit user action. */
+    fun login(selected: DiscoveryState.Ready, username: String, password: String?): GatewayLoginResult {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
+        return GatewayLoginFlow(
+            read = transport::read,
+            submit = transport::submit,
+            current = { if (resolve(selected) != null) selected else DiscoveryState.Unavailable }
+        ).login(selected, username, password)
+    }
 }
