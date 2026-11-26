@@ -23,22 +23,26 @@ internal sealed interface ExchangeResult {
 /** Synchronous, worker-thread-only transport. No automatic application-level retry. */
 internal class GatewayTransport(
     private val stillSelected: (DiscoveryState.Ready) -> Boolean,
-    private val openBound: (DiscoveryState.Ready, URI) -> HttpURLConnection?
+    private val openBound: (DiscoveryState.Ready, URI) -> HttpURLConnection?,
+    private val protocol: LoginProtocol = LoginProtocol.HTTPS_PAP,
+    private val allowInsecureHttp: Boolean = false
 ) {
     fun submit(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
-        if (request.networkId != selected.networkId ||
+        if (request.networkId != selected.networkId || request.protocol != protocol ||
             !validEndpoint(selected, request.endpoint, "/login")) return ExchangeResult.UnsupportedEndpoint
         return exchange(selected, request.endpoint, request.formBody)
     }
 
     fun read(selected: DiscoveryState.Ready, page: GatewayPage): ExchangeResult {
-        if (!LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
-        val endpoint = URI("https", null, selected.gateway, -1, page.path, null, null)
+        if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
+        val endpoint = URI(protocol.scheme, null, selected.gateway, -1, page.path, null, null)
         return exchange(selected, endpoint, null)
     }
 
+    private fun permitted() = !protocol.requiresConsent || allowInsecureHttp
+
     private fun validEndpoint(selected: DiscoveryState.Ready, endpoint: URI, path: String): Boolean =
-        LoginRequest.isGateway(selected.gateway) && endpoint.scheme == "https" &&
+        permitted() && LoginRequest.isGateway(selected.gateway) && endpoint.scheme == protocol.scheme &&
             endpoint.host == selected.gateway && endpoint.rawUserInfo == null &&
             endpoint.port == -1 && endpoint.rawPath == path &&
             endpoint.rawQuery == null && endpoint.rawFragment == null

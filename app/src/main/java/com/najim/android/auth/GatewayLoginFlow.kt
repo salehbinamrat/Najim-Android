@@ -4,27 +4,26 @@ import com.najim.android.network.DiscoveryState
 import java.net.URI
 
 internal enum class GatewayLoginResult {
-    INVALID_INPUT, NETWORK_CHANGED, ALREADY_CONNECTED, BASELINE_UNKNOWN,
+    INVALID_INPUT, NETWORK_CHANGED, INSECURE_HTTP_NOT_APPROVED, ALREADY_CONNECTED, BASELINE_UNKNOWN,
     UNSUPPORTED_PORTAL, REQUEST_REJECTED, TRANSPORT_UNAVAILABLE,
-    ACCOUNT_MISMATCH, SESSION_UNVERIFIED, MATCHING_SESSION
+    ACCOUNT_MISMATCH, SESSION_UNVERIFIED, MATCHING_SESSION, LEGACY_MATCHING_SESSION
 }
 
 /**
- * One explicit HTTPS attempt. No retry, external probe, redirect following or logout.
+ * One explicit protocol attempt. No retry, external probe, redirect following or logout.
  * MATCHING_SESSION is matching account evidence, not a guarantee of Internet access.
  */
 internal class GatewayLoginFlow(
     private val read: (DiscoveryState.Ready, GatewayPage) -> ExchangeResult,
     private val submit: (DiscoveryState.Ready, Preparation.Ready) -> ExchangeResult,
-    private val current: () -> DiscoveryState
+    private val current: () -> DiscoveryState,
+    private val protocol: LoginProtocol = LoginProtocol.HTTPS_PAP,
+    private val allowInsecureHttp: Boolean = false
 ) {
     fun login(selected: DiscoveryState.Ready, username: String, password: String?): GatewayLoginResult {
-        val initial = LoginRequest.prepare(selected, current(), username, password, LoginProtocol.HTTPS_PAP)
-        if (initial !is Preparation.Ready) {
-            return if (initial == Preparation.Rejected(PreparationError.NETWORK_CHANGED))
-                GatewayLoginResult.NETWORK_CHANGED else GatewayLoginResult.INVALID_INPUT
-        }
-        val origin = URI("https", null, selected.gateway, -1, "/", null, null)
+        val initial = LoginRequest.validateInput(selected, current(), username, password, protocol, allowInsecureHttp)
+        if (initial != null) return preparationFailure(initial)
+        val origin = URI(protocol.scheme, null, selected.gateway, -1, "/", null, null)
 
         // An explicit logged-out baseline is required. A generic /login page is not enough.
         val baseline = read(selected, GatewayPage.STATUS)
@@ -34,13 +33,21 @@ internal class GatewayLoginFlow(
         }
         if (!loggedOutRedirect(origin, baseline)) return GatewayLoginResult.BASELINE_UNKNOWN
 
-        // Read the portal immediately before submitting. Legacy CHAP is not silently downgraded.
+        // Read the portal immediately before submitting. Never change the selected protocol.
         val login = read(selected, GatewayPage.LOGIN)
         if (login !is ExchangeResult.Received) return preflightFailure(login)
         val form = parse(origin, GatewayPage.LOGIN, login)
-        if (form != PortalPage.LoginForm) return GatewayLoginResult.UNSUPPORTED_PORTAL
-        val prepared = LoginRequest.prepare(selected, current(), username, password, LoginProtocol.HTTPS_PAP)
-        if (prepared !is Preparation.Ready) return GatewayLoginResult.NETWORK_CHANGED
+        val challenge = when (protocol) {
+            LoginProtocol.HTTP_CHAP -> (form as? PortalPage.ChapForm)?.challenge
+                ?: return GatewayLoginResult.UNSUPPORTED_PORTAL
+            LoginProtocol.HTTP_PAP, LoginProtocol.HTTPS_PAP -> {
+                if (form != PortalPage.LoginForm) return GatewayLoginResult.UNSUPPORTED_PORTAL
+                null
+            }
+        }
+        val prepared = LoginRequest.prepare(selected, current(), username, password, protocol, allowInsecureHttp, challenge)
+        if (prepared is Preparation.Rejected) return preparationFailure(prepared.reason)
+        if (prepared !is Preparation.Ready) return GatewayLoginResult.INVALID_INPUT
 
         val posted = submit(selected, prepared)
         // A request can reach the gateway even if its response is lost. Never auto-retry.
@@ -53,10 +60,17 @@ internal class GatewayLoginFlow(
         if (after !is ExchangeResult.Received) return GatewayLoginResult.SESSION_UNVERIFIED
         return when (SessionVerifier.evaluate(selected, current(), username, form,
             parse(origin, GatewayPage.STATUS, after))) {
-            SessionEvidence.MATCHING_STATUS -> GatewayLoginResult.MATCHING_SESSION
+            SessionEvidence.MATCHING_STATUS -> if (protocol.requiresConsent)
+                GatewayLoginResult.LEGACY_MATCHING_SESSION else GatewayLoginResult.MATCHING_SESSION
             SessionEvidence.ACCOUNT_MISMATCH -> GatewayLoginResult.ACCOUNT_MISMATCH
             else -> GatewayLoginResult.SESSION_UNVERIFIED
         }
+    }
+
+    private fun preparationFailure(reason: PreparationError): GatewayLoginResult = when (reason) {
+        PreparationError.NETWORK_CHANGED -> GatewayLoginResult.NETWORK_CHANGED
+        PreparationError.INSECURE_HTTP_NOT_APPROVED -> GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED
+        else -> GatewayLoginResult.INVALID_INPUT
     }
 
     private fun parse(origin: URI, page: GatewayPage, result: ExchangeResult.Received): PortalPage =

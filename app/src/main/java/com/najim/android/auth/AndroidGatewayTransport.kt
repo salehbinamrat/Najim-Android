@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.os.Looper
 import com.najim.android.network.DiscoveryState
 import com.najim.android.network.WifiNetworkResolver
+import java.net.HttpURLConnection
 import java.net.Proxy
 import javax.net.ssl.HttpsURLConnection
 
@@ -18,27 +19,36 @@ internal class AndroidGatewayTransport(context: Context) {
         null
     }
 
-    private val transport = GatewayTransport(
-        stillSelected = { resolve(it) != null },
-        openBound = { selected, endpoint ->
-            val network = resolve(selected)
-            // No DNS fallback, no proxy, no custom trust manager or hostname verifier.
-            val connection = network?.openConnection(endpoint.toURL(), Proxy.NO_PROXY)
-            if (connection is HttpsURLConnection) connection else null
+    /** Protocol and consent are scoped to this invocation; do not persist or infer consent. */
+    fun login(
+        selected: DiscoveryState.Ready, username: String, password: String?,
+        protocol: LoginProtocol = LoginProtocol.HTTPS_PAP, allowInsecureHttp: Boolean = false
+    ): GatewayLoginResult {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
+        if (protocol.requiresConsent && !allowInsecureHttp) {
+            return GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED
         }
-    )
-
-    fun submit(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
-        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
-        return transport.submit(selected, request)
-    }
-    /** Complete HTTPS login sequence; call only from a worker after explicit user action. */
-    fun login(selected: DiscoveryState.Ready, username: String, password: String?): GatewayLoginResult {
-        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
+        val transport = GatewayTransport(
+            stillSelected = { resolve(it) != null },
+            openBound = { expected, endpoint ->
+                val network = resolve(expected)
+                // No DNS fallback, no proxy, no custom trust manager or hostname verifier.
+                val connection = network?.openConnection(endpoint.toURL(), Proxy.NO_PROXY)
+                when (protocol) {
+                    LoginProtocol.HTTPS_PAP -> connection as? HttpsURLConnection
+                    LoginProtocol.HTTP_PAP, LoginProtocol.HTTP_CHAP ->
+                        (connection as? HttpURLConnection)?.takeUnless { it is HttpsURLConnection }
+                }
+            },
+            protocol = protocol,
+            allowInsecureHttp = allowInsecureHttp
+        )
         return GatewayLoginFlow(
             read = transport::read,
             submit = transport::submit,
-            current = { if (resolve(selected) != null) selected else DiscoveryState.Unavailable }
+            current = { if (resolve(selected) != null) selected else DiscoveryState.Unavailable },
+            protocol = protocol,
+            allowInsecureHttp = allowInsecureHttp
         ).login(selected, username, password)
     }
 }
