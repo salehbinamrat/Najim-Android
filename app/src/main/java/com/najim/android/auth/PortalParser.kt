@@ -98,7 +98,7 @@ internal object PortalParser {
         return PortalPage.AccountStatus(evidence)
     }
 
-    private fun validForm(form: Element, gateway: URI, page: URI) =
+    internal fun validForm(form: Element, gateway: URI, page: URI) =
         form.attr("method").equals("post", ignoreCase = true) &&
             localPath(form.attr("action"), gateway, page, "/login")
 
