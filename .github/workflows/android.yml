@@ -31,6 +31,15 @@ jobs:
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - name: Run unit tests and lint
         run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
+      - name: Upload diagnostics even on verification failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports-${{ github.job }}
+          path: |
+            app/build/reports/lint-results-debug.*
+            app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: warn
   release:
     name: Android Release Preflight
     runs-on: ubuntu-latest
@@ -55,6 +64,15 @@ jobs:
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - name: Run unit tests and lint
         run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
+      - name: Upload diagnostics even on verification failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports-${{ github.job }}
+          path: |
+            app/build/reports/lint-results-debug.*
+            app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: warn
       - name: Assemble debug APK after verification
         run: bash .github/scripts/gradle-ci.sh :app:assembleDebug
       - run: |
@@ -62,7 +80,7 @@ jobs:
           sha256sum app-debug.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: phase00-debug-preflight
+          name: debug-preflight
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/SHA256SUMS.txt

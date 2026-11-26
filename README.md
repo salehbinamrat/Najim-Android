@@ -1,7 +1,7 @@
 # Najim Android
 تطبيق مستقل لمشتركي MikroTik. المرجعية الوظيفية: [NetPass](https://github.com/AbdulAziz-Hatem/netpass/commit/d401d50121afe4f09992d4f838c2c48689615d09).
-## المرحلة 00
-واجهة عربية RTL وفحص صيغة الإدخال فقط. لا مصادقة ولا OCR ولا اتصال أو تخزين للأسرار بعد.
+## المرحلة 01
+اكتشاف Wi-Fi والبوابة IPv4 محليا عبر Android، وواجهة عربية RTL وفحص الإدخال. لا مصادقة ولا OCR ولا طلبات شبكية ولا تخزين للأسرار بعد.
 ## البناء
 JDK 17، Gradle 8.11.1، AGP 8.10.1، Kotlin 2.2.21، Android SDK 35.
 ```sh
