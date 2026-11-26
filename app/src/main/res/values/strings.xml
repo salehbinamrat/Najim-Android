@@ -1,13 +1,11 @@
 <resources>
     <string name="app_name">نجم الإنترنت</string>
-    <string name="foundation_notice">اكتشاف الشبكة وفحص الإدخال محليا. تسجيل الدخول غير مفعل بعد.</string>
+    <string name="foundation_notice">تسجيل دخول تجريبي إلى بوابة الشبكة المحلية. اختر طريقة المصادقة المناسبة.</string>
     <string name="voucher_label">رقم الكرت أو اسم المستخدم</string>
-    <string name="check_input">فحص صيغة الإدخال</string>
     <string name="error_empty">يرجى إدخال رقم الكرت</string>
     <string name="error_whitespace">لا يسمح بالمسافات</string>
     <string name="error_control">يتضمن الإدخال رموز تحكم غير مسموحة</string>
     <string name="error_length">الإدخال أطول من الحد المبدئي</string>
-    <string name="format_valid">صيغة الإدخال مقبولة محليا. لم يتم التحقق من صلاحية الكرت لدى الشبكة.</string>
     <string name="network_title">الشبكة والبوابة</string>
     <string name="network_no_wifi">لا توجد شبكة Wi-Fi متصلة</string>
     <string name="network_ambiguous">توجد عدة شبكات Wi-Fi. لا يمكن تحديد الشبكة بأمان.</string>
@@ -17,4 +15,30 @@
     <string name="network_gateway">بوابة IPv4 المكتشفة</string>
     <string name="network_not_authenticated">اكتشاف البوابة لا يعني تسجيل الدخول أو توفر الإنترنت.</string>
     <string name="network_refresh">تحديث حالة الشبكة</string>
+    <string name="login_use_password">استخدام كلمة مرور منفصلة</string>
+    <string name="login_password">كلمة المرور</string>
+    <string name="login_protocol">طريقة المصادقة</string>
+    <string name="login_https">HTTPS (موصى به)</string>
+    <string name="login_http_pap">HTTP PAP</string>
+    <string name="login_http_chap">HTTP CHAP</string>
+    <string name="login_pap_warning">اتصال غير مشفر. قد يستطيع الآخرون على الشبكة قراءة بيانات الكرت وكلمة المرور.</string>
+    <string name="login_chap_warning">اتصال غير مشفر. CHAP لا يثبت هوية الراوتر، وقد يتعرض للتخمين. استخدم شبكة موثوقة فقط.</string>
+    <string name="login_consent">أوافق على مخاطر هذه المحاولة فقط</string>
+    <string name="login_submit">تسجيل الدخول</string>
+    <string name="login_cancel">إلغاء المحاولة</string>
+    <string name="login_running">جار التحقق من البوابة والجلسة…</string>
+    <string name="login_cancelling">جار إيقاف الخطوات التالية. قد يكون الطلب وصل إلى الراوتر.</string>
+    <string name="login_cancelled">توقفت المحاولة. تحقق من حالة الجلسة قبل إعادة الدخول.</string>
+    <string name="login_invalid_input">راجع صيغة بيانات الدخول وطريقة المصادقة.</string>
+    <string name="login_network_changed">تغيرت الشبكة أو تعذر التحقق منها. أعد اكتشاف البوابة.</string>
+    <string name="login_consent_required">يلزم تأكيد موافقتك على مخاطر HTTP.</string>
+    <string name="login_existing_session">توجد جلسة ظاهرة في البوابة. لم يتم إرسال كرت جديد.</string>
+    <string name="login_baseline_unknown">تعذر التحقق من حالة الجلسة السابقة. لم يتم إرسال الكرت.</string>
+    <string name="login_unsupported">نموذج الدخول لا يتوافق مع الطريقة المختارة. لم يتم إرسال الكرت.</string>
+    <string name="login_rejected">رفضت البوابة الطلب. لا يمكن تحديد سبب الرفض من الاستجابة الحالية.</string>
+    <string name="login_unavailable">تعذر الاتصال بالبوابة أو التحقق منها. لا يعني ذلك انتهاء الكرت.</string>
+    <string name="login_account_mismatch">الحساب الظاهر لا يطابق الكرت المطلوب.</string>
+    <string name="login_unverified">تعذر تأكيد نتيجة الدخول. قد يكون الطلب وصل. تحقق من الجلسة قبل إعادة المحاولة.</string>
+    <string name="login_matching">أظهرت البوابة جلسة مطابقة للحساب عبر HTTPS. لم يتم اختبار توفر الإنترنت.</string>
+    <string name="login_legacy_matching">أظهرت البوابة جلسة مطابقة للحساب عبر اتصال غير مشفر. لا يمكن تأكيد هوية البوابة أو توفر الإنترنت.</string>
 </resources>

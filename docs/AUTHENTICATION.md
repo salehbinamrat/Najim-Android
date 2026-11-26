@@ -43,3 +43,9 @@ RouterOS reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hot
 - HTTP PAP exposes credentials on the local network. HTTP CHAP does not authenticate the server and permits offline guessing; HTTP status can be forged. Return LEGACY_MATCHING_SESSION separately from TLS evidence, never describe either as proof of internet access. Do not store credentials or consent based on this result.
 - Tests cover refusal without consent, protocol mismatch, fresh CHAP proof, no downgrade/upgrade or fallback, existing sessions, changed routes, and separate legacy evidence. Custom portal support and real RouterOS 6/7 field validation remain pending.
 - Next: lifecycle-aware login UI with per-attempt HTTP risk confirmation, explicit modes, cancellation and accurate Arabic outcomes; then error parsing. No new libraries.
+
+## Phase 02B2d — login UI and attempt lifecycle
+- Arabic RTL login screen, username-only default and optional separate password; HTTPS default, explicit HTTP PAP/CHAP selection and warning/consent per attempt. Consent resets on edits, mode/network changes and submission. No saved state, credential storage or automatic login.
+- Main-thread controller and process-wide serial worker; one attempt per controller, no overlapping I/O across Activity recreation. Cancel is cooperative: blocks subsequent route checks/I/O and discards late results, but cannot retract a POST already delivered. Busy state remains until worker completion. onStop cancels and clears input state; onDestroy discards callbacks.
+- Outcome labels are deliberately conservative, especially unverified or legacy status. Phase 03 will map explicit RouterOS errors.
+- 9 controller tests cover duplicate start, consent, cancellation, network changes, disposal and late results. Compose UI and real device/network tests remain pending. No new dependencies or change to minSdk.

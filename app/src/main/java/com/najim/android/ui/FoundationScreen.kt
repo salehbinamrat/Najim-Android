@@ -10,20 +10,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
-import com.najim.android.R
-import com.najim.android.domain.VoucherInput
-import com.najim.android.network.DiscoveryState
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import com.najim.android.R
+import com.najim.android.auth.GatewayLoginResult
+import com.najim.android.auth.LoginAttemptState
+import com.najim.android.auth.LoginProtocol
+import com.najim.android.domain.VoucherInput
+import com.najim.android.network.DiscoveryState
 
 @Composable
-fun FoundationScreen(network: DiscoveryState, refreshNetwork: () -> Unit) {
-    // Do not retain credentials in saved instance state or persist them.
-    var input by remember { mutableStateOf("") }
-    var checked by remember { mutableStateOf(false) }
-    val result = VoucherInput.validate(input)
+internal fun FoundationScreen(
+    network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
+    startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
+) {
+    // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var usePassword by remember { mutableStateOf(false) }
+    var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
+    var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
+    val busy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
+    val validation = VoucherInput.validate(username)
+    val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
+        (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
     Scaffold { insets ->
         Column(Modifier.fillMaxSize().padding(insets).imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -31,29 +42,99 @@ fun FoundationScreen(network: DiscoveryState, refreshNetwork: () -> Unit) {
             Text(stringResource(R.string.foundation_notice))
             NetworkCard(network, refreshNetwork)
             OutlinedTextField(
-                value = input,
-                onValueChange = { input = VoucherInput.normalize(it); checked = false },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                value = username,
+                onValueChange = { username = VoucherInput.normalize(it) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
                 label = { Text(stringResource(R.string.voucher_label)) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                isError = checked && result.error != null
+                isError = username.isNotEmpty() && validation.error != null
             )
-            Button(onClick = { checked = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.check_input))
-            }
-            if (checked) {
-                val message = when (result.error) {
+            if (username.isNotEmpty() && validation.error != null) {
+                Text(stringResource(when (validation.error) {
                     VoucherInput.Error.EMPTY -> R.string.error_empty
                     VoucherInput.Error.WHITESPACE -> R.string.error_whitespace
                     VoucherInput.Error.CONTROL_CHARACTER -> R.string.error_control
                     VoucherInput.Error.TOO_LONG -> R.string.error_length
-                    null -> R.string.format_valid
-                }
-                Text(stringResource(message))
+                    null -> R.string.error_empty
+                }))
             }
+            Row {
+                Checkbox(checked = usePassword, enabled = !busy, onCheckedChange = {
+                    usePassword = it
+                    password = ""
+                })
+                Text(stringResource(R.string.login_use_password), Modifier.padding(top = 12.dp))
+            }
+            if (usePassword) {
+                OutlinedTextField(value = password, onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
+                    label = { Text(stringResource(R.string.login_password)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    isError = !validPassword)
+                if (!validPassword) Text(stringResource(R.string.login_invalid_input))
+            }
+            Text(stringResource(R.string.login_protocol), style = MaterialTheme.typography.titleMedium)
+            for (mode in LoginProtocol.entries) {
+                Row {
+                    RadioButton(selected = protocol == mode, enabled = !busy, onClick = { protocol = mode })
+                    Text(stringResource(when (mode) {
+                        LoginProtocol.HTTPS_PAP -> R.string.login_https
+                        LoginProtocol.HTTP_PAP -> R.string.login_http_pap
+                        LoginProtocol.HTTP_CHAP -> R.string.login_http_chap
+                    }), Modifier.padding(top = 12.dp))
+                }
+            }
+            if (protocol.requiresConsent) {
+                Text(stringResource(if (protocol == LoginProtocol.HTTP_PAP) R.string.login_pap_warning
+                    else R.string.login_chap_warning), color = MaterialTheme.colorScheme.error)
+                Row {
+                    Checkbox(checked = consent, enabled = !busy, onCheckedChange = { consent = it })
+                    Text(stringResource(R.string.login_consent), Modifier.padding(top = 12.dp))
+                }
+            }
+            Button(onClick = {
+                val approved = consent
+                consent = false
+                if (startLogin(username, if (usePassword) password else null, protocol, approved)) {
+                    username = ""
+                    password = ""
+                }
+            }, modifier = Modifier.fillMaxWidth(), enabled = !busy && network is DiscoveryState.Ready &&
+                validation.error == null && validPassword && (!protocol.requiresConsent || consent)) {
+                Text(stringResource(R.string.login_submit))
+            }
+            if (busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                OutlinedButton(onClick = cancelLogin, enabled = attempt == LoginAttemptState.Running,
+                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.login_cancel)) }
+            }
+            val message = when (attempt) {
+                LoginAttemptState.Idle -> null
+                LoginAttemptState.Running -> R.string.login_running
+                LoginAttemptState.Cancelling -> R.string.login_cancelling
+                LoginAttemptState.Cancelled -> R.string.login_cancelled
+                is LoginAttemptState.Finished -> resultMessage(attempt.result)
+            }
+            if (message != null) Text(stringResource(message))
         }
     }
+}
+
+private fun resultMessage(result: GatewayLoginResult): Int = when (result) {
+    GatewayLoginResult.INVALID_INPUT -> R.string.login_invalid_input
+    GatewayLoginResult.NETWORK_CHANGED -> R.string.login_network_changed
+    GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED -> R.string.login_consent_required
+    GatewayLoginResult.ALREADY_CONNECTED -> R.string.login_existing_session
+    GatewayLoginResult.BASELINE_UNKNOWN -> R.string.login_baseline_unknown
+    GatewayLoginResult.UNSUPPORTED_PORTAL -> R.string.login_unsupported
+    GatewayLoginResult.REQUEST_REJECTED -> R.string.login_rejected
+    GatewayLoginResult.TRANSPORT_UNAVAILABLE -> R.string.login_unavailable
+    GatewayLoginResult.ACCOUNT_MISMATCH -> R.string.login_account_mismatch
+    GatewayLoginResult.SESSION_UNVERIFIED -> R.string.login_unverified
+    GatewayLoginResult.MATCHING_SESSION -> R.string.login_matching
+    GatewayLoginResult.LEGACY_MATCHING_SESSION -> R.string.login_legacy_matching
 }
 
 @Composable
