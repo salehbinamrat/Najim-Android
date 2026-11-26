@@ -1,6 +1,7 @@
 package com.najim.android.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,6 +24,7 @@ import com.najim.android.network.DiscoveryState
 @Composable
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
+    lifecycleOwner: LifecycleOwner,
     startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
@@ -59,6 +61,11 @@ internal fun FoundationScreen(
                     null -> R.string.error_empty
                 }))
             }
+            VoucherScanner(lifecycleOwner, enabled = !busy, onConfirmed = { code ->
+                username = code
+                password = ""
+                consent = false
+            })
             Row {
                 Checkbox(checked = usePassword, enabled = !busy, onCheckedChange = {
                     usePassword = it

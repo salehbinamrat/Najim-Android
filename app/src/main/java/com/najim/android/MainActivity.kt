@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
+                            lifecycleOwner = this@MainActivity,
                             startLogin = { user, password, mode, consent ->
                                 attempts.start(discoveryState.value, user, password, mode, consent)
                             }, cancelLogin = attempts::cancel)
