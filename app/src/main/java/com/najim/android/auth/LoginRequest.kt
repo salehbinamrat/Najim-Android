@@ -6,7 +6,10 @@ import java.net.URI
 import java.net.URLEncoder
 import java.security.MessageDigest
 
-internal enum class LoginProtocol { HTTPS_PAP, HTTP_PAP, HTTP_CHAP }
+internal enum class LoginProtocol(val scheme: String) {
+    HTTPS_PAP("https"), HTTP_PAP("http"), HTTP_CHAP("http");
+    val requiresConsent: Boolean get() = scheme == "http"
+}
 
 internal enum class PreparationError {
     NETWORK_CHANGED, INVALID_GATEWAY, INSECURE_HTTP_NOT_APPROVED,
@@ -16,7 +19,8 @@ internal enum class PreparationError {
 /** Passwords and CHAP responses must not be included in logs or saved instance state. */
 internal sealed interface Preparation {
     data class Rejected(val reason: PreparationError) : Preparation
-    class Ready(val networkId: Long, val endpoint: URI, val formBody: String) : Preparation {
+    class Ready(val networkId: Long, val endpoint: URI, val formBody: String,
+        val protocol: LoginProtocol = LoginProtocol.HTTPS_PAP) : Preparation {
         override fun toString() = "LoginRequest(redacted)"
     }
 }
@@ -58,29 +62,36 @@ internal object LoginRequest {
         allowInsecureHttp: Boolean = false,
         challenge: ChapChallenge? = null
     ): Preparation {
-        if (selected != current) return reject(PreparationError.NETWORK_CHANGED)
-        if (!isGateway(selected.gateway)) return reject(PreparationError.INVALID_GATEWAY)
-        if (protocol != LoginProtocol.HTTPS_PAP && !allowInsecureHttp) {
-            return reject(PreparationError.INSECURE_HTTP_NOT_APPROVED)
+        validateInput(selected, current, username, password, protocol, allowInsecureHttp)?.let {
+            return reject(it)
         }
         val user = VoucherInput.validate(username)
-        if (user.error != null) return reject(PreparationError.INVALID_USERNAME)
-        // Username-only is explicitly empty password; never retry with username as password.
         val secret = password.orEmpty()
-        if (secret.length > 128 || secret.any { it.isISOControl() }) {
-            return reject(PreparationError.INVALID_PASSWORD)
-        }
         val wireSecret = if (protocol == LoginProtocol.HTTP_CHAP) {
-            if (secret.any { it.code > 127 }) return reject(PreparationError.INVALID_PASSWORD)
             challenge?.response(secret) ?: return reject(PreparationError.INVALID_CHALLENGE)
         } else {
             if (challenge != null) return reject(PreparationError.INVALID_CHALLENGE)
             secret
         }
-        val scheme = if (protocol == LoginProtocol.HTTPS_PAP) "https" else "http"
-        val endpoint = URI(scheme, null, selected.gateway, -1, "/login", null, null)
+        val endpoint = URI(protocol.scheme, null, selected.gateway, -1, "/login", null, null)
         val body = "username=" + encode(user.value) + "&password=" + encode(wireSecret)
-        return Preparation.Ready(selected.networkId, endpoint, body)
+        return Preparation.Ready(selected.networkId, endpoint, body, protocol)
+    }
+
+    internal fun validateInput(
+        selected: DiscoveryState.Ready, current: DiscoveryState, username: String,
+        password: String?, protocol: LoginProtocol, allowInsecureHttp: Boolean
+    ): PreparationError? {
+        if (selected != current) return PreparationError.NETWORK_CHANGED
+        if (!isGateway(selected.gateway)) return PreparationError.INVALID_GATEWAY
+        if (protocol.requiresConsent && !allowInsecureHttp) return PreparationError.INSECURE_HTTP_NOT_APPROVED
+        if (VoucherInput.validate(username).error != null) return PreparationError.INVALID_USERNAME
+        val secret = password.orEmpty()
+        if (secret.length > 128 || secret.any { it.isISOControl() } ||
+            (protocol == LoginProtocol.HTTP_CHAP && secret.any { it.code > 127 })) {
+            return PreparationError.INVALID_PASSWORD
+        }
+        return null
     }
 
     private fun reject(reason: PreparationError) = Preparation.Rejected(reason)

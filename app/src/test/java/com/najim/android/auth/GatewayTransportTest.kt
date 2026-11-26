@@ -152,4 +152,49 @@ class GatewayTransportTest {
         assertEquals(ExchangeResult.UnsupportedEndpoint,
             transport.read(wifi.copy(gateway = "evil.test"), GatewayPage.LOGIN))
     }
+    @Test fun legacyHttpWithoutConsentRejectsGetAndPostBeforeOpening() {
+        val legacy = LoginRequest.prepare(wifi, wifi, "a", null, LoginProtocol.HTTP_PAP, true) as Preparation.Ready
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_PAP)
+        assertEquals(ExchangeResult.UnsupportedEndpoint, transport.read(wifi, GatewayPage.STATUS))
+        assertEquals(ExchangeResult.UnsupportedEndpoint, transport.submit(wifi, legacy))
+    }
+
+    @Test fun approvedLegacyUsesOnlyHttpGateway() {
+        val legacy = LoginRequest.prepare(wifi, wifi, "a", null, LoginProtocol.HTTP_PAP, true) as Preparation.Ready
+        val connection = FakeConnection()
+        val transport = GatewayTransport({ true }, { _, endpoint ->
+            assertEquals("http://10.0.3.1/login", endpoint.toString())
+            connection
+        }, LoginProtocol.HTTP_PAP, true)
+        assertTrue(transport.submit(wifi, legacy) is ExchangeResult.Received)
+        assertEquals("username=a&password=", connection.sent.toString("UTF-8"))
+        assertFalse(connection.instanceFollowRedirects)
+    }
+
+    @Test fun protocolMismatchDoesNotOpenEvenWhenBothAreHttp() {
+        val legacy = LoginRequest.prepare(wifi, wifi, "a", null, LoginProtocol.HTTP_PAP, true) as Preparation.Ready
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_CHAP, true)
+        assertEquals(ExchangeResult.UnsupportedEndpoint, transport.submit(wifi, legacy))
+        assertEquals(ExchangeResult.UnsupportedEndpoint, transport.submit(wifi, request))
+    }
+
+    @Test fun legacyStatusReadUsesFixedOriginAndNoBody() {
+        val connection = FakeConnection()
+        val transport = GatewayTransport({ true }, { _, endpoint ->
+            assertEquals("http://10.0.3.1/status", endpoint.toString())
+            connection
+        }, LoginProtocol.HTTP_CHAP, true)
+        assertTrue(transport.read(wifi, GatewayPage.STATUS) is ExchangeResult.Received)
+        assertEquals("GET", connection.requestMethod)
+        assertEquals(0, connection.sent.size())
+    }
+
+    @Test fun approvedHttpStillRejectsAlteredEndpoint() {
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_PAP, true)
+        for (endpoint in listOf("http://evil.test/login", "http://10.0.3.1:8080/login",
+            "http://10.0.3.1/status", "http://10.0.3.1/login?next=1", "https://10.0.3.1/login")) {
+            val forged = Preparation.Ready(7L, URI(endpoint), "secret", LoginProtocol.HTTP_PAP)
+            assertEquals(ExchangeResult.UnsupportedEndpoint, transport.submit(wifi, forged))
+        }
+    }
 }
