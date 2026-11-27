@@ -42,13 +42,13 @@ internal fun FoundationScreen(
     startLogin: (String, String?, LoginProtocol, Boolean, SaveChoice?) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
-    var username by remember(network) { mutableStateOf("") }
-    var scanMode by remember { mutableStateOf(ScanMode.OCR) }
-    var password by remember(network) { mutableStateOf("") }
-    var usePassword by remember { mutableStateOf(false) }
-    var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
-    var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var selectedProfile by remember(network, profileState.profiles) { mutableStateOf<NetworkProfile?>(null) }
+    var username by remember(network, selectedProfile) { mutableStateOf("") }
+    var scanMode by remember { mutableStateOf(ScanMode.OCR) }
+    var password by remember(network, selectedProfile) { mutableStateOf("") }
+    var usePassword by remember(network, selectedProfile) { mutableStateOf(false) }
+    var protocol by remember(network, selectedProfile) { mutableStateOf(LoginProtocol.HTTPS_PAP) }
+    var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var saveApproved by remember(network, selectedProfile, username, password, protocol, usePassword) { mutableStateOf(false) }
     var legacySaveApproved by remember(network, selectedProfile, username, password, protocol, usePassword, saveApproved) { mutableStateOf(false) }
     val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
