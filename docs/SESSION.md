@@ -18,3 +18,6 @@ Reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hotspot%2Bcu
 - Existing controller and serial worker are reused. Clear displayed metrics immediately on starting logout, block refresh/login while busy, discard late results on lifecycle/network change. UI asks for fresh status before retrying uncertain outcomes. No new dependencies.
 - Tests are synthetic. Real logout including cookie behavior, portal variations, and UI lifecycle remain part of field acceptance.
 - Reference: https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/hotspot-customisation/
+
+
+Phase 11A: configured session-timeout is not remaining time. Generic balance and upload/download labels require explicit byte units; bare numbers are allowed only in explicitly byte-labelled fields. Hidden descendants cannot establish metric or heading evidence. External CSS is not evaluated; unknown values are left unknown.

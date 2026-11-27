@@ -29,11 +29,17 @@ internal object StatusFields {
                 hiddenStyle.containsMatchIn(it.attr("style"))
         }
 
+    /** Conservative evidence text: reject concealed descendants rather than joining their text.
+     * External stylesheets and arbitrary CSS are not evaluated by this parser.
+     */
+    fun visibleEvidence(element: Element): Boolean =
+        visible(element) && element.getAllElements().all(::visible)
+
     fun rows(doc: Document): List<Pair<String, String>> =
         doc.select("tr").filter(::visible).mapNotNull { row ->
             val cells = row.children().toList()
-            if (cells.size != 2 || cells.any { it.tagName() !in setOf("td", "th") || !visible(it) ||
-                    it.select("script, style, template, [hidden], [aria-hidden=true], [style]").any { child -> child !== it } }) null
+            if (cells.size != 2 || cells.any { it.tagName() !in setOf("td", "th") || !visibleEvidence(it) ||
+                    it.select("[style]").any { child -> child !== it } }) null
             else cells[0].text().trim().trimEnd(':').lowercase() to cells[1].text().trim()
         }
 
@@ -44,22 +50,26 @@ internal object StatusFields {
             val pieces = it.split('/')
             if (pieces.size == 2) pieces[index].trim() else ""
         }
+        // Bare numeric values are bytes only under explicitly byte-labelled fields.
+        fun explicitAmount(value: String): String =
+            if (value.trim().any { it.isLetter() }) value else ""
         fun <T> unique(values: List<String>, parse: (String) -> T?): T? {
             if (values.isEmpty()) return null
             val parsed = values.map { parse(it) ?: return null }
             return parsed.distinct().singleOrNull()
         }
         return SessionMetrics(
-            uploaded = unique(values("bytes-in", "upload", "uploaded", "الرفع") +
-                part(0, "bytes up / down", "bytes up/down"), ::parseAmount),
-            downloaded = unique(values("bytes-out", "download", "downloaded", "التنزيل") +
-                part(1, "bytes up / down", "bytes up/down"), ::parseAmount),
-            remainingTotal = unique(values("remain-bytes-total", "remaining data", "الرصيد المتبقي"), ::parseAmount),
-            remainingUpload = unique(values("remain-bytes-in", "remaining upload"), ::parseAmount),
-            remainingDownload = unique(values("remain-bytes-out", "remaining download"), ::parseAmount),
+            uploaded = unique(values("bytes-in") + part(0, "bytes up / down", "bytes up/down") +
+                values("upload", "uploaded", "الرفع").map(::explicitAmount), ::parseAmount),
+            downloaded = unique(values("bytes-out") + part(1, "bytes up / down", "bytes up/down") +
+                values("download", "downloaded", "التنزيل").map(::explicitAmount), ::parseAmount),
+            remainingTotal = unique(values("remain-bytes-total") +
+                values("remaining data", "الرصيد المتبقي", "البيانات المتبقية").map(::explicitAmount), ::parseAmount),
+            remainingUpload = unique(values("remain-bytes-in") + values("remaining upload").map(::explicitAmount), ::parseAmount),
+            remainingDownload = unique(values("remain-bytes-out") + values("remaining download").map(::explicitAmount), ::parseAmount),
             uptimeSeconds = unique(values("uptime", "uptime-secs", "connected", "مدة الاتصال") +
                 part(0, "connected / left", "connected/left"), ::parseDuration),
-            timeLeftSeconds = unique(values("session-time-left", "session-time-left-secs", "session-timeout",
+            timeLeftSeconds = unique(values("session-time-left", "session-time-left-secs",
                 "time left", "الوقت المتبقي") + part(1, "connected / left", "connected/left"), ::parseDuration)
                 ?.takeIf { it > 0L } // Zero may mean no timeout.
         )

@@ -6,3 +6,6 @@ RouterOS exposes error and error-orig in login pages; errors.txt may translate t
 - Independent outcomes for username not found, invalid password, ambiguous credentials, data limit, online time, account expiry, session limit, already logged in, device restriction, RADIUS timeout and missing profile.
 - Fixtures are synthetic; customized templates, encodings and dynamic messages not yet recognized safely remain neutral. HTTP evidence is untrusted on insecure networks. Field testing on ROS6/7, UM and FreeRADIUS remains required.
 - No new dependencies. Keep existing CI and minSdk24. Tests cover each mapping in English and Arabic, ambiguity, hidden content, origin, limits and flow integration.
+
+
+Phase 11A: reject error markers containing hidden descendants, including uppercase aria-hidden values, rather than joining concealed text into a specific error. External stylesheet visibility is not evaluated; field templates still require validation.

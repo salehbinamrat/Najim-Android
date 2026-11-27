@@ -1,7 +1,6 @@
 package com.najim.android.auth
 
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Element
 import java.net.URI
 
 /**
@@ -10,7 +9,6 @@ import java.net.URI
  */
 internal object RouterErrorParser {
     private const val ERROR_MARKERS = ".error, #error, .alert-danger, .info.alert, [role=alert], [data-hotspot-error]"
-    private val hiddenStyle = Regex("""(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\b""", RegexOption.IGNORE_CASE)
     private val spaces = Regex("""[\s\u00A0]+""")
     private val messages = mapOf(
         "user not found" to GatewayLoginResult.ROUTER_USER_NOT_FOUND,
@@ -65,7 +63,7 @@ internal object RouterErrorParser {
         val login = doc.select("form").filter { it.attr("name") == "login" }.singleOrNull() ?: return null
         if (!PortalParser.validForm(login, origin, page) || login.select("input[name=username]").size != 1) return null
 
-        val explicit = doc.select(ERROR_MARKERS).toList().filterNot(::hidden)
+        val explicit = doc.select(ERROR_MARKERS).toList().filter(StatusFields::visibleEvidence)
             .map { normalize(it.text()) }.filter { it.isNotEmpty() }.distinct()
         if (explicit.isEmpty()) return null
         // Unknown/contradictory visible messages cannot establish a specific rejection reason.
@@ -75,11 +73,4 @@ internal object RouterErrorParser {
 
     private fun normalize(value: String): String =
         spaces.replace(value.trim(), " ").trimEnd('.', '!', '،', '。').trim().lowercase()
-
-    private fun hidden(element: Element): Boolean =
-        (listOf(element) + element.parents()).any {
-            it.tagName() in setOf("script", "style", "template", "noscript", "textarea") ||
-                it.hasAttr("hidden") || it.attr("aria-hidden").equals("true", ignoreCase = true) ||
-                hiddenStyle.containsMatchIn(it.attr("style"))
-        }
 }

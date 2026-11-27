@@ -54,4 +54,21 @@ class PortalParserTest {
     @Test fun wrongSourcePageRejected() = assertEquals(PortalPage.Unknown,
         PortalParser.parse(gateway, URI("https://example.test/login"), 200, login.toByteArray()))
     @Test fun statusAtLoginIsNotAccepted() = assertEquals(PortalPage.Unknown, parse(status("00Ab")))
+    @Test fun concealedHeadingCannotProveAccount() {
+        for (tag in listOf("<span hidden>00Ab</span>", "<span aria-hidden='TRUE'>00Ab</span>",
+            "<span style='visibility: hidden'>00Ab</span>")) {
+            assertEquals(PortalPage.Unknown, parse(status(tag), "/status"))
+        }
+    }
+    @Test fun hiddenOrDisabledUsernameCannotEstablishLoginForm() {
+        for (attribute in listOf("hidden", "disabled", "type='hidden'", "aria-hidden='true'"))
+            assertEquals(PortalPage.Unknown, parse(login.replace("name=\"username\"", "name=\"username\" " + attribute)))
+    }
+    @Test fun disabledPasswordOrFormOverrideRejected() {
+        assertEquals(PortalPage.Unknown, parse(login.replace("type=\"password\"", "type=\"password\" disabled")))
+        assertEquals(PortalPage.Unknown, parse(login + "<button formaction='/other'>Submit</button>"))
+    }
+    @Test fun invalidAccountFormattingIsNotEvidence() {
+        assertEquals(PortalPage.Unknown, parse(status("00\u200BAb"), "/status"))
+    }
 }
