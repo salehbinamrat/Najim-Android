@@ -1,6 +1,8 @@
 package com.najim.android.auth
 
 import com.najim.android.network.DiscoveryState
+import com.najim.android.storage.SaveChoice
+import com.najim.android.storage.ConfirmedVoucherSave
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,14 +19,15 @@ internal class LoginAttemptController(
     private val worker: Executor,
     private val dispatch: ((() -> Unit) -> Unit),
     private val login: (DiscoveryState.Ready, String, String?, LoginProtocol, Boolean, () -> Boolean) -> GatewayLoginResult,
-    private val publish: (LoginAttemptState) -> Unit
+    private val publish: (LoginAttemptState) -> Unit,
+    private val saveConfirmed: (ConfirmedVoucherSave) -> Unit = {}
 ) {
     private var token: AtomicBoolean? = null
     private var selectedNetwork: DiscoveryState.Ready? = null
     private var disposed = false
 
     fun start(network: DiscoveryState, username: String, password: String?,
-              protocol: LoginProtocol, consent: Boolean): Boolean {
+              protocol: LoginProtocol, consent: Boolean, saveChoice: SaveChoice? = null): Boolean {
         if (disposed || token != null || network !is DiscoveryState.Ready) return false
         val invalid = LoginRequest.validateInput(network, network, username, password, protocol, consent)
         if (invalid != null) {
@@ -32,6 +35,8 @@ internal class LoginAttemptController(
                 GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED else GatewayLoginResult.INVALID_INPUT))
             return false
         }
+        if (saveChoice != null && (saveChoice.profile.gateway != network.gateway ||
+                (protocol.requiresConsent && !saveChoice.legacyAcknowledged))) return false
         val attempt = AtomicBoolean(false)
         token = attempt
         selectedNetwork = network
@@ -44,7 +49,15 @@ internal class LoginAttemptController(
                 } catch (_: RuntimeException) {
                     GatewayLoginResult.SESSION_UNVERIFIED
                 }
-                dispatch { complete(attempt, result) }
+                dispatch {
+                    complete(attempt, result) {
+                        if (saveChoice != null) {
+                            ConfirmedVoucherSave.authorize(saveChoice.profile, network,
+                                selectedNetwork ?: DiscoveryState.Unavailable, username, password,
+                                protocol, result, true, saveChoice.legacyAcknowledged)?.let(saveConfirmed)
+                        }
+                    }
+                }
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) {
             complete(attempt, GatewayLoginResult.TRANSPORT_UNAVAILABLE)
@@ -72,13 +85,16 @@ internal class LoginAttemptController(
         token?.set(true)
     }
 
-    private fun complete(attempt: AtomicBoolean, result: GatewayLoginResult) {
+    private fun complete(attempt: AtomicBoolean, result: GatewayLoginResult, onAccepted: () -> Unit = {}) {
         if (token !== attempt) return
         token = null
         if (disposed) return
         if (attempt.get()) {
             selectedNetwork = null
             publish(LoginAttemptState.Cancelled)
-        } else publish(LoginAttemptState.Finished(result))
+        } else {
+            onAccepted()
+            publish(LoginAttemptState.Finished(result))
+        }
     }
 }

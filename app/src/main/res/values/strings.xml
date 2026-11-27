@@ -114,4 +114,17 @@
     <string name="logout_still_active">لا تزال البوابة تعرض الجلسة. لم يتم تأكيد الخروج.</string>
     <string name="logout_verified">تشير حالة البوابة عبر HTTPS إلى انتهاء الجلسة الحالية. يمكنك إدخال كرت جديد.</string>
     <string name="logout_legacy_verified">تشير البوابة عبر HTTP إلى انتهاء الجلسة، لكن لا يمكن تأكيد هوية البوابة.</string>
+    <string name="profile_title">ملفات الشبكات والحفظ الآمن</string>
+    <string name="profile_identity_warning">اختر شبكتك يدويا. تشابه عنوان البوابة لا يثبت هوية الشبكة.</string>
+    <string name="profile_none">دون ملف تعريفي</string>
+    <string name="profile_name">اسم الشبكة الذي تختاره</string>
+    <string name="profile_create">إنشاء ملف للشبكة الحالية</string>
+    <string name="profile_refresh">تحديث ملفات الشبكات</string>
+    <string name="profile_created">تم إنشاء الملف التعريفي المشفر.</string>
+    <string name="profile_saved">تم حفظ الكرت في الملف المشفر.</string>
+    <string name="profile_full">بلغ التخزين الحد المسموح. لم تحذف أي بيانات.</string>
+    <string name="profile_unavailable">تعذر إتمام عملية التخزين المشفر. لم يتم تأكيد الحفظ.</string>
+    <string name="profile_invalid">اسم الملف غير صالح.</string>
+    <string name="profile_save_card">حفظ رقم الكرت وكلمة المرور إن وجدت بعد مطابقة الجلسة لهذه المحاولة فقط</string>
+    <string name="profile_save_legacy">أوافق على الحفظ بناء على نتيجة HTTP التي لا تثبت هوية البوابة</string>
 </resources>
