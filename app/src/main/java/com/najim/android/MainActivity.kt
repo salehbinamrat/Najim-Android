@@ -169,6 +169,16 @@ class MainActivity : ComponentActivity() {
                             speechSaving = speechSaving.value,
                             speechFailed = speechFailed.value,
                             changeSpeech = ::changeSpeech,
+                            readSessionAloud = { expected ->
+                                val active = expected.status as? com.najim.android.auth.SessionStatus.Active
+                                if (resumed && audioAllowed && speechEnabled.value && !speechFailed.value &&
+                                    !speechSaving.value && sessionState.value === expected && active != null &&
+                                    !session.busy) {
+                                    tonePlayer.stop()
+                                    speechPlayer.speakMetrics(active.account.metrics)
+                                } else false
+                            },
+                            silenceAudio = { tonePlayer.stop(); speechPlayer.silence() },
                             scanAccepted = { guidance.emit(SpeechCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },

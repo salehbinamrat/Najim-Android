@@ -18,10 +18,12 @@ internal fun HomeScreen(network: DiscoveryState, refreshNetwork: () -> Unit,
                         session: SessionViewState, enabled: Boolean,
                         refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
                         logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
+                        readSessionAloud: (SessionViewState.Snapshot) -> Boolean,
                         openLogin: () -> Unit) {
     NetworkCard(network, refreshNetwork)
     SessionCard(network, session, enabled = enabled,
-        refresh = refreshSession, clear = clearSession, logout = logoutSession)
+        refresh = refreshSession, clear = clearSession, logout = logoutSession,
+        readAloud = readSessionAloud)
     Button(onClick = openLogin, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.nav_login))
     }

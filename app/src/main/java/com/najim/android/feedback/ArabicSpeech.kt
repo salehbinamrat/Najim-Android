@@ -7,7 +7,8 @@ import android.speech.tts.TextToSpeech
 import com.najim.android.R
 
 /**
- * Only fixed, public phrases go to the platform engine. No network-required voices,
+ * Fixed public guidance or explicitly requested typed session metrics go to the platform engine.
+ * No account identifiers or passwords. No network-required voices,
  * no language-data downloads, no queued or replayed events. Engine behavior is external.
  */
 internal class ArabicSpeech(context: Context, private val availability: (Boolean) -> Unit) {
@@ -43,14 +44,23 @@ internal class ArabicSpeech(context: Context, private val availability: (Boolean
         } catch (_: RuntimeException) { availability(false) }
     }
 
-    fun speak(cue: SpeechCue): Boolean {
+    fun speak(cue: SpeechCue): Boolean = speakText(app.getString(phrase(cue)))
+
+    fun speakMetrics(metrics: com.najim.android.auth.SessionMetrics): Boolean =
+        speakText(SessionSpeech.summary(metrics))
+
+    fun silence() {
+        engine?.let { runCatching { it.stop() } }
+    }
+
+    private fun speakText(text: String): Boolean {
         val current = engine ?: return false
         if (!ready) return false
         return runCatching {
             val voice = current.voice
             if (voice == null || voice.locale.language != "ar" || voice.isNetworkConnectionRequired ||
                 "notInstalled" in voice.features.orEmpty()) false
-            else current.speak(app.getString(phrase(cue)), TextToSpeech.QUEUE_FLUSH, null,
+            else current.speak(text, TextToSpeech.QUEUE_FLUSH, null,
                 "najim-public-guidance") == TextToSpeech.SUCCESS
         }.getOrDefault(false)
     }

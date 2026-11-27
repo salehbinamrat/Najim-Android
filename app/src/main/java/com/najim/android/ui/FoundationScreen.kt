@@ -43,6 +43,7 @@ internal fun FoundationScreen(
     feedbackFailed: Boolean, changeFeedback: (Boolean) -> Unit, scanAccepted: () -> Unit,
     speechEnabled: Boolean, speechAvailable: Boolean, speechSaving: Boolean,
     speechFailed: Boolean, changeSpeech: (Boolean) -> Unit,
+    readSessionAloud: (SessionViewState.Snapshot) -> Boolean, silenceAudio: () -> Unit,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
     setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
@@ -65,7 +66,9 @@ internal fun FoundationScreen(
     var legacySaveApproved by remember(network, selectedProfile, username, password, protocol, usePassword, saveApproved) { mutableStateOf(false) }
     val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
     val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling || sessionState == SessionViewState.LoggingOut
-    val busy = loginBusy || sessionBusy || profileState.busy
+    var voiceBusy by remember(network, selectedProfile) { mutableStateOf(false) }
+    val otherBusy = loginBusy || sessionBusy || profileState.busy
+    val busy = otherBusy || voiceBusy
     val galleryActive = galleryState != GalleryState.Idle
     var section by remember { mutableStateOf(if (galleryActive) NajimSection.LOGIN else NajimSection.HOME) }
     LaunchedEffect(attempt) {
@@ -107,7 +110,7 @@ internal fun FoundationScreen(
             when (section) {
                 NajimSection.HOME -> {
                     HomeScreen(network, refreshNetwork, sessionState, !busy && !galleryActive,
-                        refreshSession, clearSession, logoutSession, openLogin = { navigate(NajimSection.LOGIN) })
+                        refreshSession, clearSession, logoutSession, readSessionAloud, openLogin = { navigate(NajimSection.LOGIN) })
                 }
                 NajimSection.CARDS -> {
                     CardsScreen(network, profileState, selectedProfile, !busy && !galleryActive,
@@ -150,13 +153,26 @@ internal fun FoundationScreen(
                         modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_cards)) }
                 }
             }
+            Text(stringResource(R.string.login_mode_title), style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.selectableGroup()) {
+                RadioChoice(stringResource(R.string.login_mode_username), !usePassword, !busy && !galleryActive) {
+                    usePassword = false
+                    password = ""
+                    passwordVisible = false
+                }
+                RadioChoice(stringResource(R.string.login_mode_password), usePassword, !busy && !galleryActive) {
+                    if (!usePassword) password = ""
+                    usePassword = true
+                    passwordVisible = false
+                }
+            }
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
                 label = { Text(stringResource(R.string.voucher_label)) },
                 visualTransformation = VisualTransformation.None,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, autoCorrectEnabled = false),
                 isError = username.isNotEmpty() && validation.error != null
             )
             if (username.isNotEmpty() && validation.error != null) {
@@ -169,20 +185,26 @@ internal fun FoundationScreen(
                 }))
             }
             key(network, selectedProfile) {
+                VoiceInputPanel(lifecycleOwner, enabled = !otherBusy && !galleryActive,
+                    onListening = { voiceBusy = it }, silenceAudio = silenceAudio,
+                    onAccepted = { code ->
+                        username = code
+                        password = ""
+                        passwordVisible = false
+                        consent = false
+                        saveApproved = false
+                        legacySaveApproved = false
+                    })
                 ScanPanel(lifecycleOwner, scanMode, { scanMode = it }, !busy, galleryState,
                     chooseImage, confirmImage, cancelImage, onCode = { code ->
                         scanAccepted()
                         username = code
                         password = ""
-                        usePassword = false
+                        passwordVisible = false
                         consent = false
                         saveApproved = false
                         legacySaveApproved = false
                     })
-            }
-            CheckChoice(stringResource(R.string.login_use_password), usePassword, !busy) {
-                usePassword = it
-                password = ""
             }
             if (usePassword) {
                 OutlinedTextField(value = password, onValueChange = { password = it },
