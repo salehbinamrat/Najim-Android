@@ -53,7 +53,7 @@ internal object PortalParser {
         if (!validForm(login, gateway, page) || !StatusFields.visible(login) ||
             login.select("input[name=username]").size != 1 ||
             !usableUsername(login.select("input[name=username]").single()) ||
-            login.select("input[name=password]").size > 1 || login.select("input[form], button[form], [formaction]").isNotEmpty()) {
+            login.select("input[name=password]").size > 1) {
             return PortalPage.Unknown
         }
         // Form overrides and disabled credentials are not supported. Never infer a usable
@@ -105,7 +105,7 @@ internal object PortalParser {
         return PortalPage.AccountStatus(evidence, StatusFields.parse(doc))
     }
 
-    private fun usableUsername(input: Element): Boolean =
+    internal fun usableUsername(input: Element): Boolean =
         StatusFields.visible(input) && !input.hasAttr("disabled") &&
             input.attr("type").lowercase() in setOf("", "text", "tel", "number", "email", "password", "search")
 

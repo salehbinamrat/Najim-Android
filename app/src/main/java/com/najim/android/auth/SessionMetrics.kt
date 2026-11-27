@@ -22,18 +22,19 @@ internal object StatusFields {
     private val duration = Regex("""(?:([0-9]{1,9})w)?(?:([0-9]{1,9})d)?(?:([0-9]{1,9})h)?(?:([0-9]{1,9})m)?(?:([0-9]{1,9})s)?""")
     private const val MAX_SECONDS = 3_155_760_000L
 
+    private fun locallyVisible(element: Element): Boolean =
+        element.tagName() !in setOf("script", "style", "template", "noscript", "textarea") &&
+            !element.hasAttr("hidden") && !element.attr("aria-hidden").trim().equals("true", ignoreCase = true) &&
+            !hiddenStyle.containsMatchIn(element.attr("style"))
+
     fun visible(element: Element): Boolean =
-        (listOf(element) + element.parents()).none {
-            it.tagName() in setOf("script", "style", "template", "noscript", "textarea") ||
-                it.hasAttr("hidden") || it.attr("aria-hidden").equals("true", ignoreCase = true) ||
-                hiddenStyle.containsMatchIn(it.attr("style"))
-        }
+        locallyVisible(element) && element.parents().all(::locallyVisible)
 
     /** Conservative evidence text: reject concealed descendants rather than joining their text.
      * External stylesheets and arbitrary CSS are not evaluated by this parser.
      */
     fun visibleEvidence(element: Element): Boolean =
-        visible(element) && element.getAllElements().all(::visible)
+        visible(element) && element.getAllElements().all(::locallyVisible)
 
     fun rows(doc: Document): List<Pair<String, String>> =
         doc.select("tr").filter(::visible).mapNotNull { row ->
