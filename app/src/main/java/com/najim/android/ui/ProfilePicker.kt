@@ -58,19 +58,7 @@ internal fun ProfilePicker(network: DiscoveryState, state: ProfileState, selecte
             OutlinedButton(onClick = { refresh() }, enabled = enabled) {
                 Text(stringResource(R.string.profile_refresh))
             }
-            val message = when (state.notice) {
-                ProfileNotice.NONE -> null
-                ProfileNotice.CREATED -> R.string.profile_created
-                ProfileNotice.SAVED -> R.string.profile_saved
-                ProfileNotice.FULL -> R.string.profile_full
-                ProfileNotice.UNAVAILABLE -> R.string.profile_unavailable
-                ProfileNotice.INVALID -> R.string.profile_invalid
-                ProfileNotice.DELETED -> R.string.saved_deleted
-                ProfileNotice.LOADED -> R.string.saved_loaded
-                ProfileNotice.NOT_FOUND -> R.string.saved_not_found
-                ProfileNotice.RETENTION_CHANGED -> R.string.saved_retention_changed
-            }
-            if (message != null) Text(stringResource(message))
+            ProfileNoticeText(state.notice)
         }
     }
 }
@@ -98,4 +86,21 @@ private fun RetentionPicker(profile: NetworkProfile, enabled: Boolean,
             setRetention(profile, RetentionMode.AUTO_OLDEST)
         }) { Text(stringResource(R.string.saved_retention_enable)) } },
         dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.logout_back)) } })
+}
+
+@Composable
+internal fun ProfileNoticeText(notice: ProfileNotice) {
+    val message = when (notice) {
+        ProfileNotice.NONE -> null
+        ProfileNotice.CREATED -> R.string.profile_created
+        ProfileNotice.SAVED -> R.string.profile_saved
+        ProfileNotice.FULL -> R.string.profile_full
+        ProfileNotice.UNAVAILABLE -> R.string.profile_unavailable
+        ProfileNotice.INVALID -> R.string.profile_invalid
+        ProfileNotice.DELETED -> R.string.saved_deleted
+        ProfileNotice.LOADED -> R.string.saved_loaded
+        ProfileNotice.NOT_FOUND -> R.string.saved_not_found
+        ProfileNotice.RETENTION_CHANGED -> R.string.saved_retention_changed
+    }
+    if (message != null) Text(stringResource(message))
 }

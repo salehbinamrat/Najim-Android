@@ -27,3 +27,8 @@
 
 ## Phase 08B1 — navigation shell
 - Three bottom destinations (home/session, login/scanning, saved cards/network profiles). Existing controllers unchanged; shared ephemeral selected profile and form state, no navigation dependency or saved secret back stack. Leaving login clears credentials and consent. Confirmed saved-card selection fills the masked form and opens login without submitting. Camera disposed when section leaves composition; gallery activity keeps login section and navigation locked until finished; navigation locked during active login/session/storage operations. Device and large-font layout testing still pending. Separate settings and refined scan/dashboard screens follow in 08B2/08C.
+
+## Phase 08B2 — component extraction and appearance settings
+- Four bottom destinations: home/session, login/scanning, cards/network profiles, settings. Extract home, cards and scan panel from shell without changing auth or storage controllers. Existing form scope and explicit confirmations retained; reset password and per-attempt consent when accepting a scan. Android back returns home when idle; system exit remains possible while busy with Activity lifecycle cancellation.
+- System/light/dark mode stored in private non-sensitive preferences, read and committed on serial worker, fallback to system on invalid value; no credentials or consent in preferences. Report read/write failure; apply selected mode only after successful commit. Settings includes factual storage/privacy guidance. Device appearance, large-font layout and lifecycle tests remain pending.
+- Added four JVM appearance policy tests. No new dependencies or permissions.

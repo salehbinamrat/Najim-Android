@@ -9,6 +9,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.najim.android.settings.AppearanceMode
 
 private val LightPalette = lightColorScheme(
     primary = Color(0xFF174DBA), onPrimary = Color.White,
@@ -45,9 +46,9 @@ private val NajimShapes = Shapes(
 )
 
 @Composable
-internal fun NajimTheme(content: @Composable () -> Unit) {
+internal fun NajimTheme(mode: AppearanceMode, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkPalette else LightPalette,
+        colorScheme = if (mode.usesDark(isSystemInDarkTheme())) DarkPalette else LightPalette,
         shapes = NajimShapes,
         content = content
     )

@@ -28,8 +28,15 @@ import com.najim.android.storage.AndroidVault
 import com.najim.android.storage.ProfileController
 import com.najim.android.storage.ProfileState
 import java.util.concurrent.Executors
+import com.najim.android.settings.AppearanceMode
+import com.najim.android.settings.AppearancePreferences
 
 class MainActivity : ComponentActivity() {
+    private val appearance = mutableStateOf(AppearanceMode.SYSTEM)
+    private val appearanceReady = mutableStateOf(false)
+    private val appearanceSaving = mutableStateOf(false)
+    private val appearanceFailed = mutableStateOf(false)
+    private lateinit var appearancePreferences: AppearancePreferences
     private val discoveryState = mutableStateOf<DiscoveryState>(DiscoveryState.Unavailable)
     private val attemptState = mutableStateOf<LoginAttemptState>(LoginAttemptState.Idle)
     private val inputGeneration = mutableStateOf(0)
@@ -50,6 +57,17 @@ class MainActivity : ComponentActivity() {
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
+        appearancePreferences = AppearancePreferences(applicationContext)
+        storageWorker.execute {
+            val loaded = runCatching { appearancePreferences.read() }
+            main.post {
+                if (!isDestroyed) {
+                    appearance.value = loaded.getOrDefault(AppearanceMode.SYSTEM)
+                    appearanceFailed.value = loaded.isFailure
+                    appearanceReady.value = true
+                }
+            }
+        }
         profiles = ProfileController(storageWorker, { task -> main.post { task() } },
             AndroidVault.create(applicationContext), { profileState.value = it })
         attempts = LoginAttemptController(
@@ -72,11 +90,16 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            NajimTheme {
+            NajimTheme(appearance.value) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
                             lifecycleOwner = this@MainActivity,
+                            appearance = appearance.value,
+                            appearanceReady = appearanceReady.value,
+                            appearanceSaving = appearanceSaving.value,
+                            appearanceFailed = appearanceFailed.value,
+                            changeAppearance = ::changeAppearance,
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
                             createProfile = { name -> profiles.create(discoveryState.value, name) },
@@ -124,6 +147,23 @@ class MainActivity : ComponentActivity() {
                                 }
                             }, cancelLogin = attempts::cancel)
                     }
+                }
+            }
+        }
+    }
+
+    private fun changeAppearance(mode: AppearanceMode) {
+        if (!appearanceReady.value || appearanceSaving.value || mode == appearance.value) return
+        appearanceSaving.value = true
+        appearanceFailed.value = false
+        val main = Handler(Looper.getMainLooper())
+        storageWorker.execute {
+            val saved = runCatching { appearancePreferences.write(mode) }.getOrDefault(false)
+            main.post {
+                if (!isDestroyed) {
+                    if (saved) appearance.value = mode
+                    appearanceFailed.value = !saved
+                    appearanceSaving.value = false
                 }
             }
         }
