@@ -17,13 +17,15 @@
     <string name="network_refresh">تحديث حالة الشبكة</string>
     <string name="login_use_password">استخدام كلمة مرور منفصلة</string>
     <string name="login_password">كلمة المرور</string>
+    <string name="password_show">إظهار</string>
+    <string name="password_hide">إخفاء</string>
     <string name="login_protocol">طريقة المصادقة</string>
     <string name="login_https">HTTPS (موصى به)</string>
     <string name="login_http_pap">HTTP PAP</string>
     <string name="login_http_chap">HTTP CHAP</string>
     <string name="login_pap_warning">اتصال غير مشفر. قد يستطيع الآخرون على الشبكة قراءة بيانات الكرت وكلمة المرور.</string>
     <string name="login_chap_warning">اتصال غير مشفر. CHAP لا يثبت هوية الراوتر، وقد يتعرض للتخمين. استخدم شبكة موثوقة فقط.</string>
-    <string name="login_consent">أوافق على مخاطر هذه المحاولة فقط</string>
+    <string name="login_consent">أوافق على مخاطر محاولة الدخول والتحقق من حالتها فقط</string>
     <string name="login_submit">تسجيل الدخول</string>
     <string name="login_cancel">إلغاء المحاولة</string>
     <string name="login_running">جار التحقق من البوابة والجلسة…</string>

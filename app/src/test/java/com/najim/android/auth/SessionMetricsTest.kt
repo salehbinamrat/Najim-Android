@@ -60,7 +60,9 @@ class SessionMetricsTest {
     }
     @Test fun boundedDurationParsing() {
         assertEquals(788645L, StatusFields.parseDuration("1w2d3h4m5s"))
-        for (value in listOf("", "-1", "1h2h", "999999999w", "1:30", "never"))
+        assertEquals(90L, StatusFields.parseDuration("1:30"))
+        assertEquals(3723L, StatusFields.parseDuration("01:02:03"))
+        for (value in listOf("", "-1", "1h2h", "999999999w", "1:60", "1:02:60", "never"))
             assertNull(StatusFields.parseDuration(value))
     }
     @Test fun hiddenRowsIgnored() {

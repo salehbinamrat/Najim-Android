@@ -280,4 +280,20 @@ class GatewayTransportTest {
         assertTrue(transport.read(wifi, GatewayPage.STATUS) is ExchangeResult.Received)
         assertTrue(connection.closed)
     }
+    @Test fun callbackEndpointsAreFixedAndConsentBound() {
+        val urls = mutableListOf<String>()
+        val transport = GatewayTransport({ true }, { _, endpoint ->
+            urls.add(endpoint.toString())
+            FakeConnection()
+        }, LoginProtocol.HTTP_PAP, true)
+        val request = LoginRequest.prepare(wifi, wifi, "0012", null, LoginProtocol.HTTP_PAP, true) as Preparation.Ready
+        assertTrue(transport.readCallbackStatus(wifi) is ExchangeResult.Received)
+        assertTrue(transport.submitCallback(wifi, request) is ExchangeResult.Received)
+        assertTrue(transport.logoutCallback(wifi) is ExchangeResult.Received)
+        assertEquals(listOf("http://10.0.3.1/status?var=callBack", "http://10.0.3.1/login?var=callBack",
+            "http://10.0.3.1/logout?erase-cookie=true&var=callBack"), urls)
+        val unapproved = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_PAP)
+        assertEquals(ExchangeResult.UnsupportedEndpoint, unapproved.readCallbackStatus(wifi))
+        assertEquals(ExchangeResult.UnsupportedEndpoint, unapproved.submitCallback(wifi, request))
+    }
 }

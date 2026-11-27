@@ -35,6 +35,27 @@ internal class GatewayTransport(
         return exchange(selected, request.endpoint, request.formBody)
     }
 
+    // Najm's documented callback endpoints. No caller-supplied query or URL.
+    fun readCallbackStatus(selected: DiscoveryState.Ready): ExchangeResult {
+        if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
+        return exchange(selected, URI(protocol.scheme, null, selected.gateway, -1,
+            "/status", "var=callBack", null), null)
+    }
+
+    fun submitCallback(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
+        if (protocol == LoginProtocol.HTTP_CHAP || request.networkId != selected.networkId ||
+            request.protocol != protocol || !validEndpoint(selected, request.endpoint, "/login"))
+            return ExchangeResult.UnsupportedEndpoint
+        return exchange(selected, URI(protocol.scheme, null, selected.gateway, -1,
+            "/login", "var=callBack", null), request.formBody)
+    }
+
+    fun logoutCallback(selected: DiscoveryState.Ready): ExchangeResult {
+        if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
+        return exchange(selected, URI(protocol.scheme, null, selected.gateway, -1,
+            "/logout", "erase-cookie=true&var=callBack", null), null)
+    }
+
     fun read(selected: DiscoveryState.Ready, page: GatewayPage): ExchangeResult {
         if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
         val endpoint = URI(protocol.scheme, null, selected.gateway, -1, page.path, null, null)
@@ -72,7 +93,7 @@ internal class GatewayTransport(
             target.readTimeout = 5000
             target.requestMethod = if (bytes == null) "GET" else "POST"
             target.setRequestProperty("Cache-Control", "no-store, no-cache")
-            target.setRequestProperty("Accept", "text/html")
+            target.setRequestProperty("Accept", if (endpoint.rawQuery != null) "application/json, text/plain, text/html" else "text/html")
             if (bytes != null) {
                 target.doOutput = true
                 target.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")

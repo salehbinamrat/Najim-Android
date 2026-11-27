@@ -30,6 +30,12 @@ internal class AndroidGatewayTransport(context: Context) {
             return GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED
         }
         val transport = createTransport(protocol, allowInsecureHttp, cancelled)
+        val current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable }
+        // Probe the known callback contract first, without credentials; fallback only
+        // before a POST and only to the explicitly selected protocol.
+        val callback = NajmCallbackFlow(transport::readCallbackStatus, transport::submitCallback,
+            current, protocol, allowInsecureHttp)
+        callback.login(selected, username, password)?.let { return it }
         return GatewayLoginFlow(
             read = transport::read,
             submit = transport::submit,
@@ -43,9 +49,9 @@ internal class AndroidGatewayTransport(context: Context) {
                       allowInsecureHttp: Boolean = false, cancelled: () -> Boolean = { false }): SessionStatus {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
         val transport = createTransport(protocol, allowInsecureHttp, cancelled)
-        return SessionStatusFlow(transport::read,
+        return readStatus(selected, transport,
             { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
-            protocol, allowInsecureHttp).refresh(selected)
+            protocol, allowInsecureHttp)
     }
 
     fun logout(selected: DiscoveryState.Ready, account: String, legacy: Boolean,
@@ -54,9 +60,25 @@ internal class AndroidGatewayTransport(context: Context) {
         val protocol = if (legacy) LoginProtocol.HTTP_PAP else LoginProtocol.HTTPS_PAP
         val transport = createTransport(protocol, consent && legacy, cancelled)
         val current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable }
-        val status = SessionStatusFlow(transport::read, current, protocol, consent && legacy)
-        return SessionLogoutFlow(status::refresh, transport::logout, current, legacy, consent)
-            .logout(selected, account)
+        var callback = false
+        val status: (DiscoveryState.Ready) -> SessionStatus = { network ->
+            readStatus(network, transport, current, protocol, consent && legacy) { callback = it }
+        }
+        return SessionLogoutFlow(status, { network ->
+            if (callback) transport.logoutCallback(network) else transport.logout(network)
+        }, current, legacy, consent).logout(selected, account)
+    }
+
+    private fun readStatus(selected: DiscoveryState.Ready, transport: GatewayTransport,
+                           current: () -> DiscoveryState, protocol: LoginProtocol, consent: Boolean,
+                           callbackUsed: (Boolean) -> Unit = {}): SessionStatus {
+        if (current() != selected) return SessionStatus.NetworkChanged
+        if (protocol.requiresConsent && !consent) return SessionStatus.ConsentRequired
+        val reply = transport.readCallbackStatus(selected)
+        val parsed = NajmCallback.status(reply, protocol.requiresConsent)
+        if (current() != selected || reply == ExchangeResult.NetworkChanged) return SessionStatus.NetworkChanged
+        callbackUsed(parsed != null)
+        return parsed ?: SessionStatusFlow(transport::read, current, protocol, consent).refresh(selected)
     }
 
     private fun createTransport(protocol: LoginProtocol, allowInsecureHttp: Boolean,
