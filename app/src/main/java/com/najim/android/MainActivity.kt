@@ -114,11 +114,15 @@ class MainActivity : ComponentActivity() {
                 val previous = attemptState.value
                 attemptState.value = next
                 if (previous != next) guidance.emit(SpeechPolicy.login(next))
-                // HTTPS is safe to refresh after a confirmed HTTPS attempt.
-                // HTTP requires a separate read-only approval in the session card.
-                if (started && next is LoginAttemptState.Finished &&
-                    next.result == com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION &&
-                    ::session.isInitialized) refreshInitialSession()
+                // The explicit login approval covers verification/status reads of
+                // that same successful attempt only, never a later automatic downgrade.
+                if (started && next is LoginAttemptState.Finished && ::session.isInitialized) {
+                    when (next.result) {
+                        com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession()
+                        com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION -> refreshInitialSession(true)
+                        else -> Unit
+                    }
+                }
             },
             saveConfirmed = { profiles.save(it) }
         )
@@ -305,12 +309,12 @@ class MainActivity : ComponentActivity() {
         refreshInitialSession()
     }
 
-    private fun refreshInitialSession() {
+    private fun refreshInitialSession(legacy: Boolean = false) {
         if (!started || !::session.isInitialized || session.busy ||
             attemptState.value == LoginAttemptState.Running ||
             attemptState.value == LoginAttemptState.Cancelling ||
             galleryState.value != GalleryState.Idle) return
-        session.refresh(discoveryState.value, false, false)
+        session.refresh(discoveryState.value, legacy, legacy)
     }
 
     override fun onStop() {

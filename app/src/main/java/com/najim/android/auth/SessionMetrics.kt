@@ -97,6 +97,14 @@ internal object StatusFields {
         val raw = value.trim()
         if (raw.isEmpty()) return null
         if (raw.all { it in '0'..'9' }) return raw.toLongOrNull()?.takeIf { it <= MAX_SECONDS }
+        // Najm callback can also return MM:SS or HHH:MM:SS.
+        val clock = Regex("""[0-9]{1,9}:[0-9]{2}(?::[0-9]{2})?""")
+        if (clock.matches(raw)) {
+            val parts = raw.split(':').map { it.toLong() }
+            if (parts.drop(1).any { it >= 60 }) return null
+            val total = parts.fold(0L) { sum, value -> sum * 60 + value }
+            return total.takeIf { it <= MAX_SECONDS }
+        }
         val match = duration.matchEntire(raw) ?: return null
         val factors = listOf(604800L, 86400L, 3600L, 60L, 1L)
         var seconds = 0L

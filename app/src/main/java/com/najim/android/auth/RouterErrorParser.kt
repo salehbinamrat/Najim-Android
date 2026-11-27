@@ -73,6 +73,9 @@ internal object RouterErrorParser {
         return known.singleOrNull() ?: GatewayLoginResult.REQUEST_REJECTED
     }
 
+    internal fun classifyExplicit(value: String): GatewayLoginResult =
+        messages[normalize(value)] ?: GatewayLoginResult.REQUEST_REJECTED
+
     private fun normalize(value: String): String =
         spaces.replace(value.trim(), " ").trimEnd('.', '!', '،', '。').trim().lowercase()
 }

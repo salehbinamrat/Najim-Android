@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.najim.android.R
 import com.najim.android.ocr.GalleryState
@@ -57,6 +58,7 @@ internal fun FoundationScreen(
     var scanMode by remember { mutableStateOf(ScanMode.OCR) }
     var password by remember(network, selectedProfile) { mutableStateOf("") }
     var usePassword by remember(network, selectedProfile) { mutableStateOf(false) }
+    var passwordVisible by remember(network, selectedProfile, usePassword) { mutableStateOf(false) }
     var protocol by remember(network, selectedProfile) { mutableStateOf(LoginProtocol.HTTPS_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var saveApproved by remember(network, selectedProfile, username, password, protocol, usePassword) { mutableStateOf(false) }
@@ -66,8 +68,15 @@ internal fun FoundationScreen(
     val busy = loginBusy || sessionBusy || profileState.busy
     val galleryActive = galleryState != GalleryState.Idle
     var section by remember { mutableStateOf(if (galleryActive) NajimSection.LOGIN else NajimSection.HOME) }
+    LaunchedEffect(attempt) {
+        if (section == NajimSection.LOGIN && attempt is LoginAttemptState.Finished &&
+            attempt.result in setOf(GatewayLoginResult.MATCHING_SESSION, GatewayLoginResult.LEGACY_MATCHING_SESSION)) {
+            passwordVisible = false
+            section = NajimSection.HOME
+        }
+    }
     val validation = VoucherInput.validate(username)
-    val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
+    val validPassword = !usePassword || (password.isNotEmpty() && password.length <= 128 && password.none { it.isISOControl() } &&
         (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
     fun navigate(next: NajimSection) {
         if (busy || galleryActive || next == section) return
@@ -145,8 +154,8 @@ internal fun FoundationScreen(
                 onValueChange = { username = VoucherInput.normalize(it) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
                 label = { Text(stringResource(R.string.voucher_label)) },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
                 isError = username.isNotEmpty() && validation.error != null
             )
             if (username.isNotEmpty() && validation.error != null) {
@@ -178,7 +187,12 @@ internal fun FoundationScreen(
                 OutlinedTextField(value = password, onValueChange = { password = it },
                     modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
                     label = { Text(stringResource(R.string.login_password)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        TextButton(onClick = { passwordVisible = !passwordVisible }, enabled = !busy) {
+                            Text(stringResource(if (passwordVisible) R.string.password_hide else R.string.password_show))
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = !validPassword)
                 if (!validPassword) Text(stringResource(R.string.login_invalid_input))
@@ -210,6 +224,7 @@ internal fun FoundationScreen(
             Button(onClick = {
                 val choice = if (saveApproved) selectedProfile?.let { SaveChoice(it, legacySaveApproved) } else null
                 val approved = consent
+                passwordVisible = false
                 consent = false
                 saveApproved = false
                 legacySaveApproved = false
