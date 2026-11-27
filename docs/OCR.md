@@ -16,3 +16,10 @@ https://developers.google.com/ml-kit/vision/text-recognition/v2/languages
 - Three matching frames produce a candidate and stop further analysis; UI disposes camera preview, explicitly confirms or rescans; only confirmed number populates username, never submits login. Clear old password and HTTP consent. Activity's existing onStop key reset clears candidate and closes preview.
 - Five JVM frame-gate tests; device tests needed for permission denial/regrant, background/recreation, camera errors, memory, rotation, low light and actual recognition. No inference or camera tests claimed by JVM suite.
 - Existing limitations on Arabic-script recognition remain; no new OCR engine or final ABI split in this change.
+
+## Phase 05A — gallery OCR
+- AndroidX PickVisualMedia (system picker or document fallback); no broad storage permission, persistent URI grant or app upload. A provider may need network to retrieve its own cloud image; local images work without that dependency.
+- Activity-owned picker request survives ordinary picker stop; stale results after disposal ignored. Decode on serial worker, content URI only, bounded 12 MiB input, 100 MP source metadata limit, sampled output at most 2048 per side and 2,073,600 pixels. Initial JPEG/PNG only; JPEG EXIF standard rotations supported, mirrored variants rejected. No files written.
+- Reuse LocalTextRecognizer and VoucherCandidates; single image requires explicit confirmation rather than live three-frame rule. Clear previous password/HTTP consent. No automatic login; disable concurrent login and camera while gallery active.
+- Cancel/stop discards results, cannot guarantee immediate termination of a blocking external content provider. No image or credential saved. 11 JVM policy tests; actual picker, EXIF, decoding and ML inference require Android device tests. QR support follows in 05B.
+- References: https://developer.android.com/training/data-storage/shared/photo-picker and https://developer.android.com/reference/android/media/ExifInterface

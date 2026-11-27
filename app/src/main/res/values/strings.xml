@@ -65,4 +65,11 @@
     <string name="scan_use">استخدام الرقم المقروء</string>
     <string name="scan_again">إعادة المسح</string>
     <string name="scan_close">إغلاق الكاميرا</string>
+    <string name="gallery_open">اختيار صورة الكرت</string>
+    <string name="gallery_title">قراءة صورة الكرت</string>
+    <string name="gallery_picking">اختر صورة واحدة من منتقي الصور.</string>
+    <string name="gallery_loading">جار تحليل الصورة محليا…</string>
+    <string name="gallery_failed">تعذرت قراءة الصورة. اختر صورة JPEG أو PNG واضحة لا تتجاوز 12 ميجابايت.</string>
+    <string name="gallery_no_number">لم يظهر رقم واضح. جرب صورة لرقم الكرت وحده.</string>
+    <string name="gallery_close">إغلاق قراءة الصورة</string>
 </resources>

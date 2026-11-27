@@ -3,6 +3,10 @@ package com.najim.android
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import com.najim.android.ocr.GalleryImport
+import com.najim.android.ocr.GalleryState
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,9 +33,15 @@ class MainActivity : ComponentActivity() {
     private val inputGeneration = mutableStateOf(0)
     private lateinit var discovery: WifiDiscovery
     private lateinit var attempts: LoginAttemptController
+    private lateinit var gallery: GalleryImport
+    private val galleryState = mutableStateOf<GalleryState>(GalleryState.Idle)
+    private val picker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (::gallery.isInitialized) gallery.pickerResult(uri)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
         attempts = LoginAttemptController(
@@ -51,6 +61,13 @@ class MainActivity : ComponentActivity() {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
                             lifecycleOwner = this@MainActivity,
+                            galleryState = galleryState.value,
+                            chooseImage = {
+                                if (gallery.beginPicker()) {
+                                    try { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                                    catch (_: RuntimeException) { gallery.pickerResult(null) }
+                                }
+                            }, confirmImage = gallery::confirm, cancelImage = gallery::cancel,
                             startLogin = { user, password, mode, consent ->
                                 attempts.start(discoveryState.value, user, password, mode, consent)
                             }, cancelLogin = attempts::cancel)
@@ -67,6 +84,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         attempts.cancel()
+        gallery.stop()
         inputGeneration.value += 1
         discovery.stop()
         super.onStop()
@@ -74,11 +92,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         attempts.dispose()
+        gallery.dispose()
         super.onDestroy()
     }
 
     companion object {
         // Serialize requests even across Activity recreation. Never interrupt an uncertain POST and retry it.
         private val loginWorker = Executors.newSingleThreadExecutor()
+        private val galleryWorker = Executors.newSingleThreadExecutor()
     }
 }
