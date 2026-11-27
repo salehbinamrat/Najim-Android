@@ -72,4 +72,9 @@
     <string name="gallery_failed">تعذرت قراءة الصورة. اختر صورة JPEG أو PNG واضحة لا تتجاوز 12 ميجابايت.</string>
     <string name="gallery_no_number">لم يظهر رقم واضح. جرب صورة لرقم الكرت وحده.</string>
     <string name="gallery_close">إغلاق قراءة الصورة</string>
+    <string name="scan_mode">طريقة قراءة الكرت</string>
+    <string name="scan_mode_ocr">قراءة الرقم المطبوع OCR</string>
+    <string name="scan_mode_qr">قراءة رمز QR</string>
+    <string name="qr_instructions">وجه الكاميرا إلى رمز QR الخاص بالكرت وحده.</string>
+    <string name="qr_unsupported">محتوى QR ليس رقم كرت مدعوما. لن يفتح التطبيق الروابط أو ينفذ محتوى الرمز.</string>
 </resources>

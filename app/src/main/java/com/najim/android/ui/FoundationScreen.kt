@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.najim.android.R
 import com.najim.android.ocr.GalleryState
+import com.najim.android.ocr.ScanMode
 import com.najim.android.auth.GatewayLoginResult
 import com.najim.android.auth.LoginAttemptState
 import com.najim.android.auth.LoginProtocol
@@ -26,11 +27,12 @@ import com.najim.android.network.DiscoveryState
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
-    galleryState: GalleryState, chooseImage: () -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
+    galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
     var username by remember { mutableStateOf("") }
+    var scanMode by remember { mutableStateOf(ScanMode.OCR) }
     var password by remember { mutableStateOf("") }
     var usePassword by remember { mutableStateOf(false) }
     var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
@@ -64,12 +66,23 @@ internal fun FoundationScreen(
                     null -> R.string.error_empty
                 }))
             }
-            VoucherScanner(lifecycleOwner, enabled = !busy && !galleryActive, onConfirmed = { code ->
-                username = code
-                password = ""
-                consent = false
-            })
-            GalleryScanner(galleryState, enabled = !busy, choose = chooseImage, confirm = {
+            Text(stringResource(R.string.scan_mode), style = MaterialTheme.typography.titleMedium)
+            for (mode in ScanMode.entries) {
+                Row {
+                    RadioButton(selected = scanMode == mode, enabled = !busy && !galleryActive,
+                        onClick = { scanMode = mode })
+                    Text(stringResource(if (mode == ScanMode.OCR) R.string.scan_mode_ocr else R.string.scan_mode_qr),
+                        Modifier.padding(top = 12.dp))
+                }
+            }
+            key(scanMode) {
+                VoucherScanner(lifecycleOwner, scanMode, enabled = !busy && !galleryActive, onConfirmed = { code ->
+                    username = code
+                    password = ""
+                    consent = false
+                })
+            }
+            GalleryScanner(galleryState, enabled = !busy, choose = { chooseImage(scanMode) }, confirm = {
                 confirmImage()?.let { code ->
                     username = code
                     password = ""

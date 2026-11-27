@@ -7,6 +7,7 @@ internal sealed interface ScanSuggestion {
     data object None : ScanSuggestion
     data object Ambiguous : ScanSuggestion
     data object Unstable : ScanSuggestion
+    data object Unsupported : ScanSuggestion
     class Candidate(val value: String) : ScanSuggestion {
         override fun toString() = "Candidate(redacted)"
     }

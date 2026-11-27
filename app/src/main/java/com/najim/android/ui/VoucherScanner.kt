@@ -28,9 +28,10 @@ import com.najim.android.R
 import com.najim.android.ocr.CameraVoucherAnalyzer
 import com.najim.android.ocr.RecognitionResult
 import com.najim.android.ocr.ScanSuggestion
+import com.najim.android.ocr.ScanMode
 
 @Composable
-internal fun VoucherScanner(owner: LifecycleOwner, enabled: Boolean, onConfirmed: (String) -> Unit) {
+internal fun VoucherScanner(owner: LifecycleOwner, mode: ScanMode, enabled: Boolean, onConfirmed: (String) -> Unit) {
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
     var denied by remember { mutableStateOf(false) }
@@ -85,9 +86,9 @@ internal fun VoucherScanner(owner: LifecycleOwner, enabled: Boolean, onConfirmed
             } else if (failed) {
                 Text(stringResource(R.string.scan_camera_unavailable))
             } else {
-                Text(stringResource(R.string.scan_instructions))
+                Text(stringResource(if (mode == ScanMode.QR) R.string.qr_instructions else R.string.scan_instructions))
                 key(generation) {
-                    CameraPreview(owner, onRead = { result ->
+                    CameraPreview(owner, mode, onRead = { result ->
                         reading = result
                         val value = (result as? RecognitionResult.Read)?.suggestion as? ScanSuggestion.Candidate
                         if (value != null) candidate = value.value
@@ -97,6 +98,7 @@ internal fun VoucherScanner(owner: LifecycleOwner, enabled: Boolean, onConfirmed
                     is RecognitionResult.Read -> when (result.suggestion) {
                         ScanSuggestion.Ambiguous -> R.string.scan_ambiguous
                         ScanSuggestion.Unstable -> R.string.scan_unstable
+                        ScanSuggestion.Unsupported -> R.string.qr_unsupported
                         else -> R.string.scan_searching
                     }
                     RecognitionResult.Failed -> R.string.scan_failed
@@ -124,7 +126,7 @@ internal fun VoucherScanner(owner: LifecycleOwner, enabled: Boolean, onConfirmed
 
 @Composable
 private fun CameraPreview(
-    owner: LifecycleOwner, onRead: (RecognitionResult) -> Unit, onFailure: () -> Unit
+    owner: LifecycleOwner, mode: ScanMode, onRead: (RecognitionResult) -> Unit, onFailure: () -> Unit
 ) {
     val context = LocalContext.current
     val read by rememberUpdatedState(onRead)
@@ -136,7 +138,7 @@ private fun CameraPreview(
         }
     }
     AndroidView(factory = { view }, modifier = Modifier.fillMaxWidth().height(240.dp))
-    DisposableEffect(owner, view) {
+    DisposableEffect(owner, view, mode) {
         var active = true
         var provider: ProcessCameraProvider? = null
         var preview: Preview? = null
@@ -161,7 +163,7 @@ private fun CameraPreview(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
                     analysis = frames
-                    val worker = CameraVoucherAnalyzer { result -> if (active) read(result) }
+                    val worker = CameraVoucherAnalyzer(mode) { result -> if (active) read(result) }
                     analyzer = worker
                     frames.setAnalyzer(executor, worker)
                     camera.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, p, frames)

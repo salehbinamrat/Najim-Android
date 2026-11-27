@@ -23,3 +23,10 @@ https://developers.google.com/ml-kit/vision/text-recognition/v2/languages
 - Reuse LocalTextRecognizer and VoucherCandidates; single image requires explicit confirmation rather than live three-frame rule. Clear previous password/HTTP consent. No automatic login; disable concurrent login and camera while gallery active.
 - Cancel/stop discards results, cannot guarantee immediate termination of a blocking external content provider. No image or credential saved. 11 JVM policy tests; actual picker, EXIF, decoding and ML inference require Android device tests. QR support follows in 05B.
 - References: https://developer.android.com/training/data-storage/shared/photo-picker and https://developer.android.com/reference/android/media/ExifInterface
+
+## Phase 05B — QR scanning
+- Bundled ML Kit barcode-scanning 17.3.0 (API 23+, project minSdk 24); QR-only format. https://developers.google.com/ml-kit/vision/barcode-scanning/android
+- Explicit OCR/QR choice, same CameraX frame gate, gallery decoder, recognition lifecycle and confirmation UI. Only the selected engine is created. No fallback from unsupported QR to OCR.
+- Initial QR payload policy: exact 4–32 numeric characters, Arabic/Persian digit normalization, leading zeros preserved. No whitespace, URLs, WIFI/vCard, JSON, commands, usernames with letters, or automatic execution. Mixed valid and unsupported or differing valid payloads are ambiguous. Do not expose raw QR in logs or UI.
+- Three matching frames for camera; gallery uses single-image candidate with manual confirmation. QR is not proof of card validity. No network requests or new permissions from scanning. Mode changes close camera session, and gallery keeps the requested mode.
+- Device tests remain necessary for actual model inference, QR print quality, rotation, cancellation, memory, and ABI compatibility. Initial numeric-only policy is intentionally restrictive; structured vendor QR formats require explicit validated specification before future support.

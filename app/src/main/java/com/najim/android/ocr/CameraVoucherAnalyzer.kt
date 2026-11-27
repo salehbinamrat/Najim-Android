@@ -7,9 +7,10 @@ import com.google.mlkit.vision.common.InputImage
 
 /** Main-thread analyzer: copy only accepted frames, release CameraX buffer before inference. */
 internal class CameraVoucherAnalyzer(
+    mode: ScanMode,
     private val publish: (RecognitionResult) -> Unit
 ) : ImageAnalysis.Analyzer, AutoCloseable {
-    private val recognizer = LocalTextRecognizer()
+    private val recognizer = LocalVoucherRecognizer(mode)
     private val gate = FrameGate()
     private val stability = ScanStability()
 
