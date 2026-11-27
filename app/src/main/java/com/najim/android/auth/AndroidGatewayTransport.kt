@@ -78,7 +78,10 @@ internal class AndroidGatewayTransport(context: Context) {
         val parsed = NajmCallback.status(reply, protocol.requiresConsent)
         if (current() != selected || reply == ExchangeResult.NetworkChanged) return SessionStatus.NetworkChanged
         callbackUsed(parsed != null)
-        return parsed ?: SessionStatusFlow(transport::read, current, protocol, consent).refresh(selected)
+        if (parsed != null) return parsed
+        if (NajmCallback.allowsTraditionalFallback(reply))
+            return SessionStatusFlow(transport::read, current, protocol, consent).refresh(selected)
+        return if (reply is ExchangeResult.Received) SessionStatus.Unknown else SessionStatus.Unavailable
     }
 
     private fun createTransport(protocol: LoginProtocol, allowInsecureHttp: Boolean,

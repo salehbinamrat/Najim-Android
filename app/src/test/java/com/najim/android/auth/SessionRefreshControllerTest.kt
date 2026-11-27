@@ -158,4 +158,14 @@ class SessionRefreshControllerTest {
         f.finish()
         assertEquals(1, f.logouts)
     }
+    @Test fun exactDataCountersUseReadableBinaryUnitsWithoutChangingStoredValues() {
+        assertNull(SessionDisplay.amount(null))
+        assertEquals("0 B", SessionDisplay.amount(DataAmount("0 B", 0)))
+        assertEquals("1023 B", SessionDisplay.amount(DataAmount("1023 B", 1023)))
+        val exact = DataAmount("1572864 B", 1572864)
+        assertEquals("1.50 MiB", SessionDisplay.amount(exact))
+        assertEquals(1572864L, exact.exactBytes)
+        assertEquals("2.5 GB", SessionDisplay.amount(DataAmount("2.5 GB", null)))
+        assertEquals("8.00 EiB", SessionDisplay.amount(DataAmount("raw", Long.MAX_VALUE)))
+    }
 }
