@@ -8,6 +8,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.util.concurrent.Executors
 
 internal sealed interface RecognitionResult {
     data object Busy : RecognitionResult
@@ -19,7 +20,8 @@ internal sealed interface RecognitionResult {
 }
 
 /**
- * Bundled on-device OCR or QR recognition. All calls and Task completion use the main thread.
+ * Bundled on-device OCR or QR recognition. Owner calls and completion use the main thread;
+ * bounded candidate extraction runs on a separate serial worker.
  * Caller owns image lifetime and must release it in onFinished, even after close().
  * No camera permission, disk persistence, remote request or auto-login here.
  */
@@ -34,11 +36,20 @@ internal class LocalVoucherRecognizer(
 
     private fun process(image: InputImage): Task<ScanSuggestion> {
         val text = textReader
-        return if (text != null) text.process(image).continueWith { task ->
-            val lines = task.result.textBlocks.flatMap { block -> block.lines.map { it.text } }
+        return if (text != null) text.process(image).continueWith(candidateWorker) { task ->
+            val lines = ArrayList<String>()
+            for (block in task.result.textBlocks) {
+                for (line in block.lines) {
+                    val value = line.text
+                    if (lines.size == 256 || value.length > 512) return@continueWith ScanSuggestion.Ambiguous
+                    lines.add(value)
+                }
+            }
             VoucherCandidates.extract(lines, bounds)
-        } else requireNotNull(qrReader).process(image).continueWith { task ->
-            QrVoucherPolicy.extract(task.result.map { barcode ->
+        } else requireNotNull(qrReader).process(image).continueWith(candidateWorker) { task ->
+            val codes = task.result
+            if (codes.size > 16) ScanSuggestion.Ambiguous
+            else QrVoucherPolicy.extract(codes.map { barcode ->
                 if (barcode.format == Barcode.FORMAT_QR_CODE) barcode.rawValue else null
             }, bounds)
         }
@@ -94,6 +105,10 @@ internal class LocalVoucherRecognizer(
         if (closed) return
         closed = true
         if (!inFlight) closeEngine()
+    }
+
+    companion object {
+        private val candidateWorker = Executors.newSingleThreadExecutor()
     }
 
     private fun checkMainThread() {
