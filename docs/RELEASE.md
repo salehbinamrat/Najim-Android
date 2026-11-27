@@ -1,0 +1,8 @@
+# Phase 13A — four debug preflight APKs
+
+One source tree, two edition flavors (full, lite), two architecture flavors (arm32, arm64). Full retains bundled Latin OCR 16.0.1; Lite uses Google Play services text recognition 19.0.2, with on-device inference after model availability. QR remains bundled in both. No automatic install-time model-download metadata is added by us; first OCR use may request a download through Google Play services. Offline first-use OCR is not guaranteed in Lite; manual input and QR remain independent of text model readiness. Shared application ID intentionally allows upgrading/switching editions with a compatible signing key; not side-by-side installation. No release signing keys supplied or generated.
+
+Both parallel CI jobs execute unit tests and lint for all four debug variants; Core scans resolved runtime/test dependency graphs for all variants, including release graphs. Release Preflight assembles only after verification, inspects signature, merged manifest, ZIP alignment and exact intended ARM ABI and 64-bit ELF segment alignment for each APK, then creates and checks SHA-256 for all four and uploads them. Debug APKs are NOT final release builds. No publishing or production signing. Confirm actual output names, APK sizes, new permissions and OSV counts in CI.
+
+Remaining: license decision, signing through owner-controlled key/secret process, release build and audit, device installation and 16KB runtime validation, full/lite model readiness and size comparison, RouterOS 6/7 and RADIUS field tests, performance and TalkBack. Do not claim production readiness without these.
+References: https://developers.google.com/ml-kit/vision/text-recognition/v2/android and https://developer.android.com/build/build-variants.

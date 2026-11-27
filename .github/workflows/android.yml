@@ -33,7 +33,7 @@ jobs:
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - name: Run unit tests and lint
-        run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
+        run: bash .github/scripts/verify-variants.sh
       - name: Resolve dependency inventory
         run: bash .github/scripts/gradle-ci.sh :app:writeDependencyInventory
       - name: Check known dependency advisories (OSV)
@@ -44,8 +44,8 @@ jobs:
         with:
           name: verification-reports-${{ github.job }}
           path: |
-            app/build/reports/lint-results-debug.*
-            app/build/test-results/testDebugUnitTest/*.xml
+            app/build/reports/lint-results-*.*
+            app/build/test-results/test*DebugUnitTest/*.xml
             app/build/reports/dependency-audit/*
           if-no-files-found: warn
   release:
@@ -74,32 +74,22 @@ jobs:
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
           test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
       - name: Run unit tests and lint
-        run: bash .github/scripts/gradle-ci.sh :app:testDebugUnitTest :app:lintDebug
+        run: bash .github/scripts/verify-variants.sh
       - name: Upload diagnostics even on verification failure
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verification-reports-${{ github.job }}
           path: |
-            app/build/reports/lint-results-debug.*
-            app/build/test-results/testDebugUnitTest/*.xml
+            app/build/reports/lint-results-*.*
+            app/build/test-results/test*DebugUnitTest/*.xml
           if-no-files-found: warn
-      - name: Assemble debug APK after verification
-        run: bash .github/scripts/gradle-ci.sh :app:assembleDebug
       - name: Test APK audit rules
         run: python3 -m unittest discover -s .github/scripts -p 'test_audit_apk.py'
-      - name: Inspect packaged manifest, signature and native libraries
-        run: |
-          set -euo pipefail
-          apk=app/build/outputs/apk/debug/app-debug.apk
-          report=app/build/reports/apk-audit
-          mkdir -p "$report"
-          analyzer="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/apkanalyzer' -type f -print -quit)"
-          test -n "$analyzer"
-          "$analyzer" manifest print "$apk" > "$report/manifest.xml"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$apk" > "$report/signature.txt"
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$apk" > "$report/zipalign.txt"
-          python3 .github/scripts/audit_apk.py "$apk" "$report/manifest.xml" "$report/inventory.json"
+      - name: Assemble four debug APKs after verification
+        run: bash .github/scripts/gradle-ci.sh :app:assembleFullArm32Debug :app:assembleFullArm64Debug :app:assembleLiteArm32Debug :app:assembleLiteArm64Debug
+      - name: Inspect all four packaged APKs
+        run: bash .github/scripts/inspect-variants.sh
       - name: Upload APK inspection diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -107,13 +97,9 @@ jobs:
           name: apk-audit
           path: app/build/reports/apk-audit/
           if-no-files-found: warn
-      - run: |
-          cd app/build/outputs/apk/debug
-          sha256sum app-debug.apk > SHA256SUMS.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Upload four debug preflight APKs and checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: debug-preflight
-          path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/debug/SHA256SUMS.txt
+          name: debug-preflight-four-variants
+          path: app/build/verified-apks/
           if-no-files-found: error

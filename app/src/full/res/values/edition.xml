@@ -1,0 +1,4 @@
+<resources>
+    <string name="scan_local_hint">نسخة Full: نموذج قراءة النصوص مدمج. راجع الرقم قبل استخدامه؛ لن يتم تسجيل الدخول تلقائيا.</string>
+    <string name="settings_scan_info">نسخة Full: نموذج OCR وQR مدمجان. تتم معالجة الصور على الجهاز ولا يسجل التطبيق الدخول تلقائيا بعد المسح.</string>
+</resources>

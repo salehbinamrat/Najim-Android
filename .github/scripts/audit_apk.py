@@ -99,7 +99,7 @@ def elf_info(data, abi):
             "load_alignments": alignments}
 
 
-def inspect_native(apk):
+def inspect_native(apk, required=REQUIRED, exact=False):
     inventory, errors = [], []
     with zipfile.ZipFile(apk) as archive:
         names = archive.namelist()
@@ -125,14 +125,17 @@ def inspect_native(apk):
             except (ValueError, struct.error) as error:
                 errors.append(item.filename + ": " + str(error))
         present = {entry["abi"] for entry in inventory}
-        if not REQUIRED.issubset(present):
-            errors.append("Required ARM ABI missing: " + ", ".join(sorted(REQUIRED - present)))
+        if not required.issubset(present):
+            errors.append("Required ARM ABI missing: " + ", ".join(sorted(required - present)))
+        if exact and present - required:
+            errors.append("Unexpected native ABI in single-ABI APK: " + ", ".join(sorted(present - required)))
     return inventory, errors
 
 
-def main(apk, manifest, report):
+def main(apk, manifest, report, expected_abi=None):
     manifest_info, errors = inspect_manifest(ET.parse(manifest).getroot())
-    libraries, native_errors = inspect_native(apk)
+    libraries, native_errors = inspect_native(apk, {expected_abi} if expected_abi else REQUIRED,
+                                              exact=expected_abi is not None)
     errors.extend(native_errors)
     result = {"manifest": manifest_info, "native_libraries": libraries,
               "errors": errors, "status": "failed" if errors else "passed"}
@@ -145,4 +148,11 @@ def main(apk, manifest, report):
 
 
 if __name__ == "__main__":
-    sys.exit(main(*(pathlib.Path(arg) for arg in sys.argv[1:])))
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("apk", type=pathlib.Path)
+    parser.add_argument("manifest", type=pathlib.Path)
+    parser.add_argument("report", type=pathlib.Path)
+    parser.add_argument("--abi", choices=sorted(REQUIRED))
+    args = parser.parse_args()
+    sys.exit(main(args.apk, args.manifest, args.report, args.abi))
