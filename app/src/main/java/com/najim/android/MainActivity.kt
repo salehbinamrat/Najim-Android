@@ -121,7 +121,8 @@ class MainActivity : ComponentActivity() {
                     when (next.result) {
                         com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession()
                         com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION -> refreshInitialSession(true)
-                        com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED -> refreshInitialSession(attemptHttpApproved)
+                        com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED,
+                        com.najim.android.auth.GatewayLoginResult.SESSION_UNVERIFIED -> refreshInitialSession(attemptHttpApproved)
                         else -> Unit
                     }
                 }
@@ -174,11 +175,13 @@ class MainActivity : ComponentActivity() {
                             changeSpeech = ::changeSpeech,
                             readSessionAloud = { expected ->
                                 val active = expected.status as? com.najim.android.auth.SessionStatus.Active
-                                if (resumed && audioAllowed && speechEnabled.value && !speechFailed.value &&
-                                    !speechSaving.value && sessionState.value === expected && active != null &&
+                                if (resumed && sessionState.value === expected && active != null &&
                                     !session.busy) {
                                     tonePlayer.stop()
-                                    speechPlayer.speakMetrics(active.account.metrics)
+                                    if (!speechAvailable.value) {
+                                        speechPlayer.prepare()
+                                        false
+                                    } else speechPlayer.speakMetrics(active.account.metrics)
                                 } else false
                             },
                             silenceAudio = { tonePlayer.stop(); speechPlayer.silence() },
@@ -329,12 +332,13 @@ class MainActivity : ComponentActivity() {
         refreshInitialSession()
     }
 
-    private fun refreshInitialSession(legacy: Boolean = false) {
-        if (!started || !::session.isInitialized || session.busy ||
+    private fun refreshInitialSession(legacy: Boolean? = null) {
+        if (!started || !::session.isInitialized ||
             attemptState.value == LoginAttemptState.Running ||
             attemptState.value == LoginAttemptState.Cancelling ||
             galleryState.value != GalleryState.Idle) return
-        session.refresh(discoveryState.value, legacy, legacy)
+        if (legacy == null) session.refreshAutomatic(discoveryState.value)
+        else session.refresh(discoveryState.value, legacy, legacy)
     }
 
     override fun onStop() {

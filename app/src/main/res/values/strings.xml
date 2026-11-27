@@ -31,7 +31,7 @@
     <string name="voice_accept">استخدام الرقم</string>
     <string name="voice_discard">إلغاء الرقم</string>
     <string name="speech_read_metrics">قراءة حالة الكرت صوتيا</string>
-    <string name="speech_read_unavailable">فعّل التوجيه الصوتي والعربي في الإعدادات وتأكد من توفر صوت عربي محلي. لن تقرأ كلمات المرور أو أرقام الكروت.</string>
+    <string name="speech_read_unavailable">يتم تهيئة الصوت العربي المحلي. اضغط مرة أخرى إن توفر الصوت. إذا تعذر، ثبّت صوتا عربيا محليا من إعدادات تحويل النص إلى كلام في أندرويد.</string>
     <string name="password_show">إظهار</string>
     <string name="password_hide">إخفاء</string>
     <string name="login_protocol">طريقة المصادقة</string>
@@ -99,12 +99,12 @@
     <string name="session_legacy_warning">اتصال غير مشفر. لا يمكن تأكيد هوية البوابة أو صحة البيانات ضد التلاعب.</string>
     <string name="session_consent">أوافق على قراءة الحالة عبر HTTP لهذه المرة فقط</string>
     <string name="session_refresh">تحديث بيانات الجلسة</string>
-    <string name="session_idle">يتم فحص الحالة عبر HTTPS عند فتح التطبيق. إذا كانت شبكتك تستخدم HTTP فاختر قراءة الحالة عبر HTTP.</string>
+    <string name="session_idle">يتم جلب حالة الكرت تلقائيا من البوابة المحلية عند فتح التطبيق. قراءة HTTP لا ترسل بيانات الدخول، لكنها غير مشفرة.</string>
     <string name="session_refresh_https">تحديث الحالة عبر HTTPS</string>
     <string name="session_refresh_http">قراءة حالة الكرت عبر HTTP</string>
     <string name="session_http_read_confirm">سيقرأ التطبيق صفحة الحالة المحلية فقط، دون إرسال رقم الكرت أو كلمة المرور. الاتصال غير مشفر وقد تكون البيانات غير موثوقة. هل توافق لهذه المرة؟</string>
     <string name="session_http_read_button">قراءة الحالة الآن</string>
-    <string name="login_protocol_help">بعض شبكات MikroTik تستخدم HTTP فقط. اختر HTTP CHAP إذا كانت البوابة تستخدم CHAP، أو HTTP PAP إذا كانت تستخدم PAP، ثم وافق على مخاطر الاتصال. لا يبدل التطبيق الطريقة تلقائيا.</string>
+    <string name="login_protocol_help">HTTP PAP هو الخيار الأول لصفحات نجم نت المرفقة. اختر HTTPS للبوابات الآمنة أو HTTP CHAP للبوابات التي تتطلبه. إرسال بيانات الدخول عبر HTTP يحتاج موافقتك لكل محاولة.</string>
     <string name="session_loading">جار جلب حالة الجلسة…</string>
     <string name="session_cancelling">جار إيقاف التحديث…</string>
     <string name="session_cancel">إلغاء التحديث</string>

@@ -42,7 +42,16 @@ internal object NajmCallback {
         if (VoucherInput.validate(user).error != null || VoucherInput.normalize(user) != user)
             return SessionStatus.Unknown
         fun amount(key: String) = data[key]?.let(StatusFields::parseAmount)
-        fun time(key: String) = data[key]?.let(StatusFields::parseDuration)
+        fun time(key: String): Long? {
+            val value = data[key]?.trim() ?: return null
+            // All three supplied portals permit one or two digits after a colon.
+            val clock = Regex("""[0-9]{1,9}(?::[0-9]{1,2}){1,2}""")
+            if (clock.matches(value)) {
+                val parts = value.split(':')
+                return StatusFields.parseDuration(parts.first() + parts.drop(1).joinToString("") { ":" + it.padStart(2, '0') })
+            }
+            return StatusFields.parseDuration(value)
+        }
         return SessionStatus.Active(PortalPage.AccountStatus(user, SessionMetrics(
             uploaded = amount("bytes_in"), downloaded = amount("bytes_out"),
             remainingTotal = amount("remain_bytes_total"), uptimeSeconds = time("uptime"),

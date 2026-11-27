@@ -60,7 +60,7 @@ internal fun FoundationScreen(
     var password by remember(network, selectedProfile) { mutableStateOf("") }
     var usePassword by remember(network, selectedProfile) { mutableStateOf(false) }
     var passwordVisible by remember(network, selectedProfile, usePassword) { mutableStateOf(false) }
-    var protocol by remember(network, selectedProfile) { mutableStateOf(LoginProtocol.HTTPS_PAP) }
+    var protocol by remember(network, selectedProfile) { mutableStateOf(LoginProtocol.HTTP_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var saveApproved by remember(network, selectedProfile, username, password, protocol, usePassword) { mutableStateOf(false) }
     var legacySaveApproved by remember(network, selectedProfile, username, password, protocol, usePassword, saveApproved) { mutableStateOf(false) }
@@ -89,7 +89,7 @@ internal fun FoundationScreen(
             username = ""
             password = ""
             usePassword = false
-            protocol = LoginProtocol.HTTPS_PAP
+            protocol = LoginProtocol.HTTP_PAP
             consent = false
             saveApproved = false
             legacySaveApproved = false

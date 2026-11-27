@@ -141,4 +141,11 @@ class NajmCallbackTest {
         assertEquals(6, reads)
         assertEquals(1, posts)
     }
+    @Test fun uploadedPortalClockFormatsAndStatusFields() {
+        val response = reply("""{"logged_in":"yes","username":"0012","bytes_in":"0","bytes_out":"456","remain_bytes_total":"1024","session_time_left":"1:2:3","uptime":"5:9","action":"onStatusQuery"}""")
+        val status = NajmCallback.status(response, true) as SessionStatus.Active
+        assertEquals(3723L, status.account.metrics.timeLeftSeconds)
+        assertEquals(309L, status.account.metrics.uptimeSeconds)
+        assertEquals(0L, status.account.metrics.uploaded?.exactBytes)
+    }
 }

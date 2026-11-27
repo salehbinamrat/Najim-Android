@@ -32,3 +32,7 @@ Reference: https://github.com/salehbinamrat/Najmhotspot/tree/044cde9e8b0d3aa04e8
 
 
 Callback follow-up: malformed JSON or transport failure no longer triggers traditional parser fallback; valid HTML/redirect/unsupported endpoint may use the same-origin traditional read path before credentials are submitted. A recognized login acknowledgement permits up to five read-only status queries with delays 0/400/950/1500/2000 ms and cooperative 18s budget; no POST retry. Temporary transport read failure may be retried inside that bound, identity mismatch or malformed evidence stops. Exact byte counters displayed in IEC binary units. No evidence of field resolution until user retests.
+
+
+### Actual supplied archive comparison (2026-11-27)
+All three uploaded variants contain matching status/fstatus/alogin callback templates. Password edition adds password only if nonempty, normal edition username only, speeds edition sends optional domain and port signals which are deliberately not adopted. None of these three login templates expose a dedicated CHAP challenge callback. Browser boot fetches same-origin status automatically. Android now uses read-only HTTP status at startup (no credential POST) then HTTPS for unknown/unavailable; keeps explicit HTTP credential consent and legacy warning. Actual Wi-Fi gateway, router logs, installed speech engine remain unobserved. Do not change router settings. Empty or missing quota remains unknown rather than claiming unlimited.
