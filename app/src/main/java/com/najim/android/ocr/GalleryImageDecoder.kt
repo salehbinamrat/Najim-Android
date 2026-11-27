@@ -12,12 +12,13 @@ import java.io.IOException
 internal object GalleryImageDecoder {
     class Decoded(val bitmap: Bitmap, val rotation: Int)
 
-    fun decode(resolver: ContentResolver, uri: Uri): Decoded? {
-        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return null
+    fun decode(resolver: ContentResolver, uri: Uri, cancelled: () -> Boolean = { false }): Decoded? {
+        if (cancelled() || uri.scheme != ContentResolver.SCHEME_CONTENT) return null
         val bytes = try {
-            resolver.openInputStream(uri)?.use { ImageImportPolicy.readBounded(it) }
+            resolver.openInputStream(uri)?.use { ImageImportPolicy.readBounded(it, cancelled = cancelled) }
         } catch (_: IOException) { null } catch (_: RuntimeException) { null } ?: return null
         try {
+            if (cancelled()) return null
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             val sample = ImageImportPolicy.sampleSize(bounds.outWidth, bounds.outHeight) ?: return null
@@ -28,13 +29,14 @@ internal object GalleryImageDecoder {
                 "image/png" -> 0
                 else -> null
             } ?: return null
+            if (cancelled()) return null
             val options = BitmapFactory.Options().apply {
                 inSampleSize = sample
                 inPreferredConfig = Bitmap.Config.ARGB_8888
                 inScaled = false
             }
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
-            if (bitmap.width > ImageImportPolicy.MAX_SIDE || bitmap.height > ImageImportPolicy.MAX_SIDE ||
+            if (cancelled() || bitmap.width > ImageImportPolicy.MAX_SIDE || bitmap.height > ImageImportPolicy.MAX_SIDE ||
                 bitmap.width.toLong() * bitmap.height > ImageImportPolicy.MAX_PIXELS) {
                 bitmap.recycle()
                 return null

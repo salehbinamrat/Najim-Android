@@ -50,8 +50,8 @@ internal class GalleryImport(
         set(GalleryState.Loading)
         try {
             worker.execute {
-                val decoded = if (attempt.get()) null else GalleryImageDecoder.decode(resolver, uri)
-                main.post { recognize(attempt, decoded) }
+                val decoded = if (attempt.get()) null else GalleryImageDecoder.decode(resolver, uri, attempt::get)
+                if (!main.post { recognize(attempt, decoded) }) decoded?.bitmap?.recycle()
             }
         } catch (_: RejectedExecutionException) {
             token = null

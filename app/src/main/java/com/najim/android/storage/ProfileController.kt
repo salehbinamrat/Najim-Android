@@ -29,12 +29,20 @@ internal class ProfileController(
     private var state = ProfileState()
     private var token: AtomicBoolean? = null
     private var disposed = false
+    private var refreshPending = false
     val busy: Boolean get() = token != null
 
     fun accepts(profile: NetworkProfile): Boolean =
         !disposed && !busy && state.ready && state.profiles.any { it === profile }
 
     fun refresh(): Boolean = launch { readCatalog(ProfileNotice.NONE) }
+
+    /** Network/lifecycle caller: coalesce repeated invalidations without queuing extra decryptions. */
+    fun reload() {
+        if (disposed) return
+        clear()
+        if (busy) refreshPending = true else refresh()
+    }
 
     fun create(network: DiscoveryState, name: String): Boolean {
         if (disposed || busy || !state.ready || network !is DiscoveryState.Ready) return false
@@ -127,9 +135,15 @@ internal class ProfileController(
                 dispatch {
                     if (token === operation) {
                         token = null
-                        if (!disposed && !operation.get() && next != null) {
-                            set(next)
-                            onAccepted()
+                        if (!disposed) {
+                            if (!operation.get() && next != null) {
+                                set(next)
+                                onAccepted()
+                            }
+                            if (refreshPending) {
+                                refreshPending = false
+                                refresh()
+                            } else if (operation.get()) set(ProfileState())
                         }
                     }
                 }
@@ -144,9 +158,10 @@ internal class ProfileController(
 
     /** Queued operations are cancelled; an atomic write already started may finish. */
     fun clear() {
+        refreshPending = false
         token?.set(true)
-        token = null
-        if (!disposed) set(ProfileState())
+        // Retain worker ownership until completion; a later reload is coalesced.
+        if (!disposed) set(ProfileState(busy = busy))
     }
 
     fun dispose() {
