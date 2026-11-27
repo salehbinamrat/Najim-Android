@@ -93,3 +93,7 @@
 ## Phase 13B — release build verification
 - Phase 13A passed 45963895362, 134 Maven components with zero OSV matches, all four debug APKs passed artifact audit and checksums. Merge d7e7e3e9530dc7798079f14c9e94fbbeeca36a8e.
 - Verify all debug and release unit tests and lint before assembling, scan release unit-test classpaths, generate four unsigned non-debug release candidates alongside debug preflight. Audit release SDK levels, debuggable/testOnly flags, exact ABI and alignment; separate checksum artifacts. Two audit regression tests. Handle recognizer initialization failure without crashing the camera/gallery flow (including Lite without supported services). No production keys, no publication, no runtime dependency change. Physical device/RouterOS and owner signing/license remain mandatory release gates.
+
+## Phase 13C — signing integrity and field acceptance gate
+- Phase 13B verified 45964841827, 134 components/0 OSV matches, eight APKs passed applicable audits and hashes; merge af113744075b43dd68f0fc2b3ab43fb603908ca9. Four release candidates remain unsigned.
+- Add offline final signed-artifact verifier: exact four candidates, unsigned checksums, trusted owner certificate, signature, unchanged payload, ABI/manifest/alignment re-audit, signed checksums and complete-only report. Six CI-only tests; no keys or publication. Explicit field acceptance checklist remains entirely pending. Implementation of signing verification does not authorize release.

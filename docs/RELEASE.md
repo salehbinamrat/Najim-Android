@@ -16,3 +16,21 @@ Both parallel jobs now verify debug AND release unit tests and lint for all four
 
 ### Owner-controlled signing (not executed)
 Keep a backed-up release keystore offline; never commit passwords or keys, never send them in chat. Owner must select the signing identity and verify expected certificate SHA-256 via an independent trusted record. Sign each previously verified unsigned candidate with Android SDK apksigner (prompt for passwords; do not pass literal passwords on command line). Verify signature, certificate fingerprint, alignment and packaged manifest again after signing; generate fresh SHA-256 for the signed files. Test upgrades using the same certificate and application ID. Do not distribute signed APKs until physical device, RouterOS and RADIUS acceptance and distribution license are confirmed. Debug CI certificates may differ across runs; debug installations may require uninstall (which clears local data) before installing production. Back up any needed test vouchers manually before uninstalling. No real key or password generated, requested or uploaded.
+
+
+## Phase 13B verified
+Run 45964841827 passed both jobs: 134 resolved Maven components / zero OSV matches; 10 audit tests; 8 APKs passed applicable manifest/ABI/alignment gates and checksums. Four Debug APKs verified signed; four Release candidates remain unsigned. Merged af113744075b43dd68f0fc2b3ab43fb603908ca9.
+
+## Phase 13C — owner-signed artifact verification
+No production key is generated or stored. Download the four unsigned candidates and SHA256SUMS.txt from the specific approved CI run through authenticated GitHub access; verify their provenance independently (an untrusted archive containing its own checksum is not proof of origin). Retain the original bytes. Sign each locally with SDK 35.0.0 apksigner, using the owner's keystore and interactive password prompts. Name the four signed files Najim-full-arm32-release.apk, Najim-full-arm64-release.apk, Najim-lite-arm32-release.apk, Najim-lite-arm64-release.apk in a separate directory. Do not modify the original candidates.
+
+Run locally with Python 3 and Android SDK tools installed (Linux/macOS shell; no passwords passed):
+```sh
+python3 .github/scripts/verify_signed_release.py \
+  --unsigned-dir /path/to/approved-unsigned \
+  --signed-dir /path/to/signed \
+  --report-dir /path/to/new-verification-report \
+  --sdk /path/to/android-sdk \
+  --certificate-sha256 YOUR_INDEPENDENTLY_VERIFIED_64_HEX_CERTIFICATE_FINGERPRINT
+```
+The tool checks the exact four filenames, candidate checksum file, valid signature with exactly one matching certificate (rejects conventional Android Debug DN), unchanged non-signature ZIP payload, manifest and native ABI/alignment. It writes signed checksums and reports only if all four pass. This is not an attestation of source provenance or runtime behavior. Keep files unchanged during verification and distribution; confirm output SHA-256 again at distribution. Six synthetic verifier tests are added to CI; no production signing or actual signed-file verification has occurred. Field acceptance matrix: docs/FIELD-ACCEPTANCE.md. License and field results still require owner authorization/evidence.
