@@ -40,10 +40,10 @@ private fun NetworkCard(network: DiscoveryState, refresh: () -> Unit) {
                 DiscoveryState.Unavailable -> R.string.network_unavailable
                 is DiscoveryState.Ready -> R.string.network_gateway
             }
-            Text(stringResource(message))
+            Text(stringResource(message), style = MaterialTheme.typography.titleMedium)
             if (network is DiscoveryState.Ready) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Text(network.gateway)
+                    Text(network.gateway, style = MaterialTheme.typography.headlineSmall)
                 }
                 Text(stringResource(R.string.network_not_authenticated))
             }

@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -114,16 +115,31 @@ private fun logoutMessage(result: LogoutResult): Int = when (result) {
 private fun SessionSnapshot(status: SessionStatus) {
     when (status) {
         is SessionStatus.Active -> {
-            Text(stringResource(R.string.session_active), style = MaterialTheme.typography.titleMedium)
-            Metric(R.string.session_account, SessionDisplay.maskAccount(status.account.username))
+            Surface(shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                Column(Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.session_active), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.session_account), style = MaterialTheme.typography.labelMedium)
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Text(SessionDisplay.maskAccount(status.account.username),
+                            style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
             val m = status.account.metrics
-            Metric(R.string.session_remaining, m.remainingTotal?.reported)
-            Metric(R.string.session_time_left, SessionDisplay.duration(m.timeLeftSeconds))
-            Metric(R.string.session_uptime, SessionDisplay.duration(m.uptimeSeconds))
-            Metric(R.string.session_download, m.downloaded?.reported)
-            Metric(R.string.session_upload, m.uploaded?.reported)
-            Metric(R.string.session_remaining_download, m.remainingDownload?.reported)
-            Metric(R.string.session_remaining_upload, m.remainingUpload?.reported)
+            MetricGroup(R.string.session_balance_group, listOf(
+                MetricValue(R.string.session_remaining, m.remainingTotal?.reported),
+                MetricValue(R.string.session_time_left, SessionDisplay.duration(m.timeLeftSeconds)),
+                MetricValue(R.string.session_remaining_download, m.remainingDownload?.reported),
+                MetricValue(R.string.session_remaining_upload, m.remainingUpload?.reported)
+            ))
+            MetricGroup(R.string.session_usage_group, listOf(
+                MetricValue(R.string.session_download, m.downloaded?.reported),
+                MetricValue(R.string.session_upload, m.uploaded?.reported),
+                MetricValue(R.string.session_uptime, SessionDisplay.duration(m.uptimeSeconds))
+            ))
         }
         else -> Text(stringResource(when (status) {
             SessionStatus.NetworkChanged -> R.string.login_network_changed
@@ -136,13 +152,38 @@ private fun SessionSnapshot(status: SessionStatus) {
     }
 }
 
+private class MetricValue(val label: Int, val value: String?)
+
 @Composable
-private fun Metric(label: Int, value: String?) {
-    HorizontalDivider()
-    Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
-    if (value == null) Text(stringResource(R.string.session_not_reported),
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
-    else CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        Text(value, style = MaterialTheme.typography.titleMedium)
+private fun MetricGroup(title: Int, metrics: List<MetricValue>) {
+    Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = AdaptiveLayout.metricColumns(maxWidth.value, LocalDensity.current.fontScale)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (group in metrics.chunked(columns)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (metric in group) MetricTile(metric, Modifier.weight(1f))
+                    if (columns == 2 && group.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricTile(metric: MetricValue, modifier: Modifier) {
+    Surface(modifier = modifier, shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(metric.label), style = MaterialTheme.typography.labelLarge)
+            val value = metric.value
+            if (value == null) Text(stringResource(R.string.session_not_reported),
+                style = MaterialTheme.typography.bodyMedium)
+            else CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Text(value, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
     }
 }

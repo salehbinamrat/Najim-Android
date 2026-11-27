@@ -18,7 +18,7 @@ internal fun NajimHeader() {
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.foundation_notice), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

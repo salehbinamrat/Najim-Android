@@ -160,4 +160,13 @@
     <string name="settings_storage_info">يتم حفظ حتى %1$d كروت لكل ملف شبكة في تخزين محلي مشفر. يمكن إدارة الحذف من قسم الكروت والشبكات.</string>
     <string name="settings_http_info">تتطلب كل عملية HTTP غير المشفرة موافقة منفصلة. لا يتم تجاوز التحقق من هوية البوابة عبر HTTPS.</string>
     <string name="settings_scan_info">تتم قراءة الكروت والصور محليا ولا يسجل التطبيق الدخول تلقائيا بعد المسح.</string>
+    <string name="session_balance_group">الرصيد والوقت المتبقي</string>
+    <string name="session_usage_group">استهلاك الجلسة ومدتها</string>
+    <string name="saved_order_hint">مرتبة من آخر حفظ ناجح إلى الأقدم.</string>
+    <string name="saved_newest">الأحدث حفظا</string>
+    <string name="saved_oldest">الأقدم حفظا</string>
+    <string name="scan_local_hint">اختر طريقة القراءة. راجع الرقم قبل استخدامه؛ لن يتم تسجيل الدخول تلقائيا.</string>
+    <string name="login_profile_heading">الشبكة المختارة للحفظ</string>
+    <string name="nav_cards_short">الكروت</string>
+    <string name="app_subtitle">إدارة الاتصال والكروت بسهولة</string>
 </resources>
