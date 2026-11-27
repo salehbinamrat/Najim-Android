@@ -5,6 +5,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import com.najim.android.storage.VaultLimits
+import com.najim.android.storage.RetentionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -22,14 +24,27 @@ internal fun SavedVoucherCard(profile: NetworkProfile, cards: List<SavedVoucher>
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.saved_title), style = MaterialTheme.typography.titleMedium)
-            Text(profile.name)
+            Text(profile.name, style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.saved_capacity, cards.size, VaultLimits.MAX_RECORDS))
+            Text(stringResource(if (profile.retention == RetentionMode.MANUAL)
+                R.string.saved_retention_manual else R.string.saved_retention_auto),
+                style = MaterialTheme.typography.bodySmall)
             if (cards.isEmpty()) Text(stringResource(R.string.saved_empty))
-            for ((index, card) in cards.withIndex()) {
+            else Text(stringResource(R.string.saved_order_hint), style = MaterialTheme.typography.bodySmall)
+            // Vault sequence is oldest to newest; display newest first without changing eviction order.
+            for ((index, card) in cards.asReversed().withIndex()) {
                 key(card.id) {
-                    HorizontalDivider()
-                    Text(stringResource(R.string.saved_index, index + 1))
+                    Surface(shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(when {
+                        index == 0 -> stringResource(R.string.saved_newest)
+                        index == cards.lastIndex -> stringResource(R.string.saved_oldest)
+                        else -> stringResource(R.string.saved_index, index + 1)
+                    }, style = MaterialTheme.typography.labelLarge)
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(card.maskedAccount, style = MaterialTheme.typography.titleMedium)
+                        Text(card.maskedAccount, style = MaterialTheme.typography.headlineSmall)
                     }
                     Text(stringResource(when (card.protocol) {
                         LoginProtocol.HTTPS_PAP -> R.string.login_https
@@ -43,6 +58,8 @@ internal fun SavedVoucherCard(profile: NetworkProfile, cards: List<SavedVoucher>
                             modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.saved_delete), color = MaterialTheme.colorScheme.error)
                         }
+                    }
+                    }
                     }
                 }
             }

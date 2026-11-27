@@ -84,7 +84,7 @@ internal fun FoundationScreen(
         NajimNavigation(section, enabled = !busy && !galleryActive, select = ::navigate)
     }) { insets ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(insets).imePadding(), contentAlignment = Alignment.TopCenter) {
-        val horizontalPadding = if (maxWidth < 360.dp) 12.dp else 20.dp
+        val horizontalPadding = AdaptiveLayout.sidePadding(maxWidth.value).dp
         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().verticalScroll(key(section) { rememberScrollState() })
             .padding(horizontal = horizontalPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -126,11 +126,15 @@ internal fun FoundationScreen(
                 }
                 NajimSection.LOGIN -> {
             val currentProfile = selectedProfile
-            Text(if (currentProfile == null) stringResource(R.string.profile_none)
-                else stringResource(R.string.login_selected_profile, currentProfile.name),
-                style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(onClick = { navigate(NajimSection.CARDS) }, enabled = !busy && !galleryActive,
-                modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_cards)) }
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.login_profile_heading), style = MaterialTheme.typography.labelLarge)
+                    Text(if (currentProfile == null) stringResource(R.string.profile_none)
+                        else currentProfile.name, style = MaterialTheme.typography.titleMedium)
+                    OutlinedButton(onClick = { navigate(NajimSection.CARDS) }, enabled = !busy && !galleryActive,
+                        modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_cards)) }
+                }
+            }
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
@@ -236,7 +240,11 @@ internal fun FoundationScreen(
                 LoginAttemptState.Cancelled -> R.string.login_cancelled
                 is LoginAttemptState.Finished -> resultMessage(attempt.result)
             }
-            if (message != null) Text(stringResource(message))
+            if (message != null) Surface(shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
+                Text(stringResource(message), Modifier.fillMaxWidth().padding(12.dp))
+            }
             ProfileNoticeText(profileState.notice)
                 }
                 NajimSection.SETTINGS -> SettingsScreen(appearance, appearanceReady,

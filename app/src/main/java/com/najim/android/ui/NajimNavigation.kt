@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.najim.android.R
 
 internal enum class NajimSection(val label: Int) {
-    HOME(R.string.nav_home), LOGIN(R.string.nav_login), CARDS(R.string.nav_cards), SETTINGS(R.string.nav_settings)
+    HOME(R.string.nav_home), LOGIN(R.string.nav_login), CARDS(R.string.nav_cards_short), SETTINGS(R.string.nav_settings)
 }
 
 /** Stable four-section shell. No new navigation dependency or retained secret back stack. */

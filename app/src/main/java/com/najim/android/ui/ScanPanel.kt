@@ -19,6 +19,8 @@ internal fun ScanPanel(owner: LifecycleOwner, mode: ScanMode, selectMode: (ScanM
     val galleryActive = galleryState != GalleryState.Idle
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.scan_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.scan_local_hint), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.scan_mode), style = MaterialTheme.typography.titleMedium)
             for (item in ScanMode.entries) {
                 Row {
