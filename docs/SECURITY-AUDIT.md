@@ -21,3 +21,9 @@ Phase 12C verified in run 45963075073: both jobs passed, 131 Maven components / 
 
 
 Phase 13A verified: run 45963895362, 134 Maven coordinates / 0 OSV matches, all four APKs 4 permissions each / 0 rule findings, Full 5 and Lite 4 native libraries per ABI; checksum verification successful. Phase 13B adds release manifest restrictions and unsigned artifact inspection. Production signature verification is NOT complete; no signing identity supplied.
+
+
+Phase 13B verified (45964841827): 134 Maven components, zero OSV matches; eight APKs passed applicable rules and SHA-256; ten CI audit tests passed. Release APKs unsigned, not signature-verified. Phase 13C adds an offline owner-signed APK verifier, using independently trusted certificate fingerprint, comparing entry contents to verified unsigned APKs (excluding conventional signing metadata only), rechecking signature and artifact rules. Candidate provenance and field acceptance remain separate; no production key supplied. Six synthetic verifier tests added. No runtime dependency changes.
+
+
+13C follow-up: reject v1-only signatures, recheck complete input hashes, and test the verifier end-to-end using disposable CI-only signatures on all four release candidates plus a wrong-certificate negative case. No production key involved. Real signed artifact and field acceptance still pending.

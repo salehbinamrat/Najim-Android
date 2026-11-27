@@ -1,0 +1,20 @@
+# Field acceptance — mandatory before distribution
+
+Status: NOT EXECUTED. Use dedicated test devices and test vouchers, isolated lab or authorized test networks. Never store credentials, customer data, keys or unredacted screenshots. Record date, exact Git commit, artifact SHA-256, Android/ABI/RouterOS/backend versions, expected and observed result, and pass/fail evidence. Use the same signed candidate bytes intended for distribution; any code change requires regression review and new artifacts.
+
+| Gate | Required evidence | Status |
+|---|---|---|
+| ARM32 Android 7+ and ARM64 modern Android | Install, launch, navigation, no crashes, exact architecture | Pending |
+| ARM64 16KB runtime | Actual device/emulator page size 16384; startup, OCR, QR, session and vault | Pending |
+| Full offline OCR/QR | Airplane mode with lab Wi-Fi, first use, manual confirmation, camera/gallery | Pending |
+| Lite first-use OCR | Model unavailable, no Play services, download on supported device, offline reuse, QR/manual fallback | Pending |
+| RouterOS 6.49.x + UM v6 | Login, logout, status, quota/time/session rejection, timeout distinction | Pending |
+| RouterOS 7.x + UM v7 | Same scenarios with supported PAP/CHAP/HTTPS and valid TLS | Pending |
+| RouterOS 6/7 + FreeRADIUS | Accept/reject/timeout/accounting, no inferred success | Pending |
+| Security/network switching | Same gateway across separate Wi-Fi networks, VPN, redirects, invalid TLS, no credential replay, no unexpected network requests | Pending |
+| Encrypted vault | Five per profile, manual/auto, restart, interrupted writes, denied/failed auth, no loss of other profiles | Pending |
+| UI/accessibility/performance | 320–600dp, font scale, TalkBack, dark/light, camera cycles, startup/PSS/battery/thermal; record real measurements | Pending |
+| Signed artifact verification | Four matching payloads, expected owner certificate, alignment, SHA-256 | Pending |
+| Distribution authorization | Owner-selected license and signing identity, field acceptance review | Pending |
+
+Do not alter production router or customer configurations. No automatic release publication. A failed or missing required gate blocks production distribution. See ROUTEROS-COMPATIBILITY.md, PERFORMANCE.md, SECURITY-AUDIT.md, RELEASE.md.

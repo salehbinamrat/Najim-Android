@@ -84,8 +84,8 @@ jobs:
             app/build/reports/lint-results-*.*
             app/build/test-results/test*UnitTest/*.xml
           if-no-files-found: warn
-      - name: Test APK audit rules
-        run: python3 -m unittest discover -s .github/scripts -p 'test_audit_apk.py'
+      - name: Test APK audit and final-signature verification rules
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
       - name: Assemble four debug APKs after verification
         run: bash .github/scripts/gradle-ci.sh :app:assembleFullArm32Debug :app:assembleFullArm64Debug :app:assembleLiteArm32Debug :app:assembleLiteArm64Debug
       - name: Inspect all four debug APKs
@@ -94,6 +94,8 @@ jobs:
         run: bash .github/scripts/gradle-ci.sh :app:assembleFullArm32Release :app:assembleFullArm64Release :app:assembleLiteArm32Release :app:assembleLiteArm64Release
       - name: Inspect unsigned release candidates
         run: bash .github/scripts/inspect-variants.sh release
+      - name: Exercise final verifier with disposable CI test signer
+        run: bash .github/scripts/smoke-signature-verification.sh
       - name: Upload APK inspection diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
