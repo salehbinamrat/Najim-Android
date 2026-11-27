@@ -65,17 +65,17 @@ internal object StatusFields {
         }
         return SessionMetrics(
             uploaded = unique(values("bytes-in") + part(0, "bytes up / down", "bytes up/down") +
-                values("upload", "uploaded", "الرفع").map(::explicitAmount), ::parseAmount),
+                values("upload", "uploaded", "الرفع", "البيانات المرفوعة", "حجم الرفع").map(::explicitAmount), ::parseAmount),
             downloaded = unique(values("bytes-out") + part(1, "bytes up / down", "bytes up/down") +
-                values("download", "downloaded", "التنزيل").map(::explicitAmount), ::parseAmount),
+                values("download", "downloaded", "التنزيل", "التحميل", "البيانات المحملة", "حجم التنزيل").map(::explicitAmount), ::parseAmount),
             remainingTotal = unique(values("remain-bytes-total") +
-                values("remaining data", "الرصيد المتبقي", "البيانات المتبقية").map(::explicitAmount), ::parseAmount),
+                values("remaining data", "الرصيد المتبقي", "البيانات المتبقية", "حجم البيانات المتبقي", "المتبقي من البيانات").map(::explicitAmount), ::parseAmount),
             remainingUpload = unique(values("remain-bytes-in") + values("remaining upload").map(::explicitAmount), ::parseAmount),
             remainingDownload = unique(values("remain-bytes-out") + values("remaining download").map(::explicitAmount), ::parseAmount),
-            uptimeSeconds = unique(values("uptime", "uptime-secs", "connected", "مدة الاتصال") +
+            uptimeSeconds = unique(values("uptime", "uptime-secs", "connected", "مدة الاتصال", "وقت الاتصال", "الوقت المستهلك", "مدة الاستخدام") +
                 part(0, "connected / left", "connected/left"), ::parseDuration),
             timeLeftSeconds = unique(values("session-time-left", "session-time-left-secs",
-                "time left", "الوقت المتبقي") + part(1, "connected / left", "connected/left"), ::parseDuration)
+                "time left", "الوقت المتبقي", "الزمن المتبقي", "المدة المتبقية") + part(1, "connected / left", "connected/left"), ::parseDuration)
                 ?.takeIf { it > 0L } // Zero may mean no timeout.
         )
     }

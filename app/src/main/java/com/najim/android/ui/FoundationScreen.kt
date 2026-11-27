@@ -184,6 +184,7 @@ internal fun FoundationScreen(
                 if (!validPassword) Text(stringResource(R.string.login_invalid_input))
             }
             Text(stringResource(R.string.login_protocol), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.login_protocol_help), style = MaterialTheme.typography.bodySmall)
             Column(Modifier.selectableGroup()) {
                 for (mode in LoginProtocol.entries) {
                     RadioChoice(stringResource(when (mode) {

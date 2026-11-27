@@ -36,7 +36,7 @@
     <string name="login_baseline_unknown">تعذر التحقق من حالة الجلسة السابقة. لم يتم إرسال الكرت.</string>
     <string name="login_unsupported">نموذج الدخول لا يتوافق مع الطريقة المختارة. لم يتم إرسال الكرت.</string>
     <string name="login_rejected">رفضت البوابة الطلب. لا يمكن تحديد سبب الرفض من الاستجابة الحالية.</string>
-    <string name="login_unavailable">تعذر الاتصال بالبوابة أو التحقق منها. لا يعني ذلك انتهاء الكرت.</string>
+    <string name="login_unavailable">تعذر الاتصال بالبوابة أو التحقق منها. إذا كانت الشبكة لا تدعم HTTPS، اختر طريقة HTTP المناسبة بعد الموافقة. لا يعني ذلك انتهاء الكرت.</string>
     <string name="login_account_mismatch">الحساب الظاهر لا يطابق الكرت المطلوب.</string>
     <string name="login_unverified">تعذر تأكيد نتيجة الدخول. قد يكون الطلب وصل. تحقق من الجلسة قبل إعادة المحاولة.</string>
     <string name="login_matching">أظهرت البوابة جلسة مطابقة للحساب عبر HTTPS. لم يتم اختبار توفر الإنترنت.</string>
@@ -82,7 +82,12 @@
     <string name="session_legacy_warning">اتصال غير مشفر. لا يمكن تأكيد هوية البوابة أو صحة البيانات ضد التلاعب.</string>
     <string name="session_consent">أوافق على قراءة الحالة عبر HTTP لهذه المرة فقط</string>
     <string name="session_refresh">تحديث بيانات الجلسة</string>
-    <string name="session_idle">اضغط تحديث لجلب حالة الجلسة من البوابة.</string>
+    <string name="session_idle">يتم فحص الحالة عبر HTTPS عند فتح التطبيق. إذا كانت شبكتك تستخدم HTTP فاختر قراءة الحالة عبر HTTP.</string>
+    <string name="session_refresh_https">تحديث الحالة عبر HTTPS</string>
+    <string name="session_refresh_http">قراءة حالة الكرت عبر HTTP</string>
+    <string name="session_http_read_confirm">سيقرأ التطبيق صفحة الحالة المحلية فقط، دون إرسال رقم الكرت أو كلمة المرور. الاتصال غير مشفر وقد تكون البيانات غير موثوقة. هل توافق لهذه المرة؟</string>
+    <string name="session_http_read_button">قراءة الحالة الآن</string>
+    <string name="login_protocol_help">بعض شبكات MikroTik تستخدم HTTP فقط. اختر HTTP CHAP إذا كانت البوابة تستخدم CHAP، أو HTTP PAP إذا كانت تستخدم PAP، ثم وافق على مخاطر الاتصال. لا يبدل التطبيق الطريقة تلقائيا.</string>
     <string name="session_loading">جار جلب حالة الجلسة…</string>
     <string name="session_cancelling">جار إيقاف التحديث…</string>
     <string name="session_cancel">إلغاء التحديث</string>
@@ -97,7 +102,7 @@
     <string name="session_remaining_download">رصيد التنزيل المتبقي</string>
     <string name="session_remaining_upload">رصيد الرفع المتبقي</string>
     <string name="session_not_reported">غير متاح من البوابة</string>
-    <string name="session_unavailable">تعذر الاتصال بالبوابة. لا يعني ذلك انتهاء الجلسة.</string>
+    <string name="session_unavailable">تعذر الاتصال بالبوابة بهذه الطريقة. إذا كانت الشبكة لا تدعم HTTPS، جرب قراءة الحالة عبر HTTP. لا يعني ذلك انتهاء الجلسة.</string>
     <string name="session_unknown">تعذر تحديد حالة الجلسة من الاستجابة.</string>
     <string name="session_logged_out">تشير البوابة إلى ضرورة تسجيل الدخول.</string>
     <string name="session_snapshot_note">هذه بيانات آخر تحديث وليست قياسا لحظيا أو إثباتا لتوفر الإنترنت.</string>

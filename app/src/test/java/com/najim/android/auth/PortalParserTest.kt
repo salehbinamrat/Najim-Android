@@ -97,4 +97,22 @@ class PortalParserTest {
     @Test fun additionalMalformedChapExpressionIsAmbiguous() {
         assertEquals(PortalPage.Unknown, parse(chap() + "<script>hexMD5('invalid')</script>"))
     }
+    @Test fun unnamedAndIdOnlyLocalFormsAreSupported() {
+        for (attribute in listOf("", "id=\"login\""))
+            assertEquals(PortalPage.LoginForm, parse(login.replace("name=\"login\"", attribute)))
+    }
+    @Test fun additionalNamedFormIsNotAcceptedAsLocalPap() {
+        assertEquals(PortalPage.Unknown, parse(login + login.replace("name=\"login\"", "id=\"extra\"")))
+    }
+    @Test fun localizedStatusIdentityAndSecondaryHeadingAreSupported() {
+        for (html in listOf("<h2>Welcome, 00Ab!</h2>", "<h3>مرحبا بك، 00Ab!</h3>",
+            "<table><tr><td>رقم الكرت</td><td>00Ab</td></tr></table>")) {
+            val result = parse(html + "<form action='/logout'></form>", "/status") as PortalPage.AccountStatus
+            assertEquals("00Ab", result.username)
+        }
+    }
+    @Test fun localizedStatusCannotOverrideConflictingOrHiddenAccount() {
+        assertEquals(PortalPage.Unknown, parse("<h2>Welcome, 00Ab!</h2><table><tr><td>رقم الكرت</td><td>other</td></tr></table><form action='/logout'></form>", "/status"))
+        assertEquals(PortalPage.Unknown, parse("<h3>مرحبا بك، <span hidden>00Ab</span>!</h3><form action='/logout'></form>", "/status"))
+    }
 }

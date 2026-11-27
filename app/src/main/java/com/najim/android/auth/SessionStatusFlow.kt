@@ -39,8 +39,32 @@ internal class SessionStatusFlow(
 
 internal object SessionRedirect {
     fun loggedOut(origin: URI, result: ExchangeResult.Received): Boolean {
+        if (result.statusCode == 200) {
+            // RouterOS can return fstatus.html or an HTML redirect instead of 302.
+            // Recognize only an explicit immediate local login redirect or a
+            // supported login form. Never navigate or execute page scripts.
+            if (result.body.isEmpty() || result.body.size > GatewayTransport.MAX_RESPONSE_BYTES) return false
+            val doc = org.jsoup.Jsoup.parse(result.body.toString(Charsets.UTF_8), origin.resolve("/status").toString())
+            if (doc.select("base").isNotEmpty()) return false
+            val refresh = doc.select("meta[http-equiv=refresh]")
+            if (refresh.isNotEmpty()) {
+                if (refresh.size != 1 || doc.select("form, a[href], script, input").isNotEmpty()) return false
+                val match = Regex("""0\s*;\s*url\s*=\s*(.+)""", RegexOption.IGNORE_CASE)
+                    .matchEntire(refresh.single().attr("content").trim()) ?: return false
+                return localLogin(origin, match.groupValues[1].trim().removeSurrounding("'").removeSurrounding("\""))
+            }
+            if (doc.select("a[href], form[action]").any {
+                    val attr = if (it.tagName() == "a") "href" else "action"
+                    it.attr(attr).substringBefore('?').trimEnd('/').endsWith("/logout", ignoreCase = true)
+                }) return false
+            val form = PortalParser.parse(origin, origin.resolve("/login"), 200, result.body)
+            return form == PortalPage.LoginForm || form is PortalPage.ChapForm
+        }
         if (result.statusCode !in setOf(301, 302, 303, 307, 308)) return false
-        val raw = result.location ?: return false
+        return localLogin(origin, result.location ?: return false)
+    }
+
+    private fun localLogin(origin: URI, raw: String): Boolean {
         if (raw.isBlank() || raw.any { it.isISOControl() || it == '\\' }) return false
         val destination = try { origin.resolve(URI(raw)) } catch (_: java.net.URISyntaxException) {
             return false

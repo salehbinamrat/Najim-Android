@@ -114,6 +114,11 @@ class MainActivity : ComponentActivity() {
                 val previous = attemptState.value
                 attemptState.value = next
                 if (previous != next) guidance.emit(SpeechPolicy.login(next))
+                // HTTPS is safe to refresh after a confirmed HTTPS attempt.
+                // HTTP requires a separate read-only approval in the session card.
+                if (started && next is LoginAttemptState.Finished &&
+                    next.result == com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION &&
+                    ::session.isInitialized) refreshInitialSession()
             },
             saveConfirmed = { profiles.save(it) }
         )
@@ -131,6 +136,7 @@ class MainActivity : ComponentActivity() {
             if (changed && started && !startingDiscovery) {
                 gallery.cancel()
                 profiles.reload()
+                refreshInitialSession()
             }
         }
         enableEdgeToEdge()
@@ -296,6 +302,15 @@ class MainActivity : ComponentActivity() {
         startingDiscovery = true
         try { discovery.start() } finally { startingDiscovery = false }
         profiles.reload()
+        refreshInitialSession()
+    }
+
+    private fun refreshInitialSession() {
+        if (!started || !::session.isInitialized || session.busy ||
+            attemptState.value == LoginAttemptState.Running ||
+            attemptState.value == LoginAttemptState.Cancelling ||
+            galleryState.value != GalleryState.Idle) return
+        session.refresh(discoveryState.value, false, false)
     }
 
     override fun onStop() {

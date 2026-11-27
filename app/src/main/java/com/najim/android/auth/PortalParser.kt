@@ -24,6 +24,7 @@ internal object PortalParser {
     )
     private val octalByte = Regex("""\\([0-7]{3})""")
     private val welcome = Regex("""Welcome,?\s+(.+)!""")
+    private val arabicWelcome = Regex("""(?:مرحبا|أهلا|اهلا)(?: بك)?[،,]?\s+([^!！]+)[!！]""")
 
     fun parse(gateway: URI, page: URI, code: Int, html: ByteArray): PortalPage {
         if (code != 200 || html.isEmpty() || html.size > GatewayTransport.MAX_RESPONSE_BYTES) {
@@ -48,8 +49,7 @@ internal object PortalParser {
 
     private fun parseLogin(doc: Document, gateway: URI, page: URI): PortalPage {
         val forms = doc.select("form").toList()
-        val login = forms.filter { it.attr("name") == "login" }.singleOrNull()
-            ?: return PortalPage.Unknown
+        val login = loginForm(doc, gateway, page) ?: return PortalPage.Unknown
         if (!validForm(login, gateway, page) || !StatusFields.visible(login) ||
             login.select("input[name=username]").size != 1 ||
             !usableUsername(login.select("input[name=username]").single()) ||
@@ -96,11 +96,15 @@ internal object PortalParser {
             localPath(it.attr(attribute), gateway, page, "/logout")
         }
         if (!logout) return PortalPage.Unknown
-        val headings = doc.select("h1").filter(StatusFields::visibleEvidence)
-            .mapNotNull { welcome.matchEntire(it.wholeText().trim { ch -> ch in " \t\r\n" })?.groupValues?.get(1) }
+        val headings = doc.select("h1,h2,h3").filter(StatusFields::visibleEvidence)
+            .mapNotNull { heading ->
+                val text = heading.wholeText().trim { ch -> ch in " \t\r\n" }
+                welcome.matchEntire(text)?.groupValues?.get(1)
+                    ?: arabicWelcome.matchEntire(text)?.groupValues?.get(1)
+            }
         // Element.text() normalizes whitespace and removes some invisible characters.
         // Validate the original decoded identity, not a cleaned alias.
-        val rows = StatusFields.rows(doc, preserveValue = true).filter { it.first in setOf("user", "username", "اسم المستخدم") }
+        val rows = StatusFields.rows(doc, preserveValue = true).filter { it.first in setOf("user", "username", "user name", "اسم المستخدم", "رقم الكرت", "رقم البطاقة") }
             .map { it.second }
         val evidence = (headings + rows).distinct().singleOrNull() ?: return PortalPage.Unknown
         if (com.najim.android.domain.VoucherInput.validate(evidence).error != null ||
@@ -109,6 +113,16 @@ internal object PortalParser {
         }
         return PortalPage.AccountStatus(evidence, StatusFields.parse(doc))
     }
+
+    // Accept a standard named/id form or a unique unnamed local POST form.
+    // A CHAP hidden sendin form is never a visible credential form.
+    internal fun loginForm(doc: Document, gateway: URI, page: URI): Element? =
+        doc.select("form").filter { form ->
+            form.attr("name") != "sendin" && form.id() != "sendin" &&
+                StatusFields.visible(form) && validForm(form, gateway, page) &&
+                form.select("input[name=username]").size == 1 &&
+                usableUsername(form.select("input[name=username]").single())
+        }.singleOrNull()
 
     internal fun usableUsername(input: Element): Boolean =
         StatusFields.visible(input) && !input.hasAttr("disabled") &&

@@ -60,7 +60,7 @@ internal object RouterErrorParser {
         val page = origin.resolve("/login")
         val doc = Jsoup.parse(response.body.toString(Charsets.UTF_8), page.toString())
         if (doc.select("base, meta[http-equiv=refresh]").isNotEmpty()) return null
-        val login = doc.select("form").filter { it.attr("name") == "login" }.singleOrNull() ?: return null
+        val login = PortalParser.loginForm(doc, origin, page) ?: return null
         if (!PortalParser.validForm(login, origin, page) || !StatusFields.visible(login) ||
             login.select("input[name=username]").size != 1 ||
             !PortalParser.usableUsername(login.select("input[name=username]").single())) return null
