@@ -79,3 +79,6 @@
 ## Phase 12A — local-data security hardening
 - Both CI paths passed Phase 11B (45960648346), merged 5e7f0ce159ff499e4178d59510c400b4d09ab507. Field RouterOS acceptance remains outstanding.
 - Protect window captures with FLAG_SECURE, redact validation result diagnostics, wipe owned plaintext codec buffers (including growth copies), fail closed on ambiguous legacy duplicate accounts without silent deletion. Four new JVM tests; no new library, permission, format migration or network behavior changes. Real-device screenshot/recents, keyboard/accessibility, AndroidKeyStore and AtomicFile validation pending. See docs/SECURE-STORAGE.md.
+
+## Phase 12B — supply-chain and portal hardening
+- Pin CI actions to verified prior-run SHAs, disable checkout token persistence, cap job duration. Inventory resolved runtime/test Maven dependencies and query OSV in Android Core; fail on matches or incomplete scan; report artifacts. Tighten CHAP regex to exact octal lengths and reject multiple hash calls; two new regression tests. No runtime dependency, permission or data format change. Full advisory scan, merged manifest/native artifact verification and device acceptance pending. See docs/SECURITY-AUDIT.md.

@@ -89,4 +89,12 @@ class PortalParserTest {
             assertEquals(PortalPage.Unknown, parse("<table><tr><td>User</td><td>$value</td></tr></table><a href='/logout'>Logout</a>", "/status"))
         }
     }
+    @Test fun hugeChapChallengeIsRejectedWithoutRecursiveRegexOverflow() {
+        val oversized = chap(challenge = "\\001".repeat(12000))
+        assertTrue(oversized.toByteArray().size < GatewayTransport.MAX_RESPONSE_BYTES)
+        assertEquals(PortalPage.Unknown, parse(oversized))
+    }
+    @Test fun additionalMalformedChapExpressionIsAmbiguous() {
+        assertEquals(PortalPage.Unknown, parse(chap() + "<script>hexMD5('invalid')</script>"))
+    }
 }

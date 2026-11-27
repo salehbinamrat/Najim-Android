@@ -37,3 +37,30 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     testImplementation("junit:junit:4.13.2")
 }
+
+
+// CI-only inventory: selected module versions, including transitive dependencies.
+// Does not add any library or change packaged application code.
+tasks.register("writeDependencyInventory") {
+    val report = layout.buildDirectory.file("reports/dependency-audit/components.tsv")
+    outputs.file(report)
+    outputs.upToDateWhen { false }
+    doLast {
+        val components = sortedSetOf<String>()
+        for (name in listOf("debugRuntimeClasspath", "releaseRuntimeClasspath",
+            "debugUnitTestRuntimeClasspath")) {
+            val graph = configurations.getByName(name).incoming.resolutionResult
+            check(graph.allDependencies.none {
+                it is org.gradle.api.artifacts.result.UnresolvedDependencyResult
+            }) { "Unresolved dependencies in " + name }
+            graph.allComponents.forEach { component ->
+                val id = component.id as? org.gradle.api.artifacts.component.ModuleComponentIdentifier
+                if (id != null) components.add(id.group + ":" + id.module + "\t" + id.version)
+            }
+        }
+        check(components.isNotEmpty()) { "Empty dependency inventory" }
+        val output = report.get().asFile
+        output.parentFile.mkdirs()
+        output.writeText(components.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
+    }
+}
