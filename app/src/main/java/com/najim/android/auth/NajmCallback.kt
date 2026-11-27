@@ -84,9 +84,13 @@ internal object NajmCallback {
     fun rejection(response: ExchangeResult): GatewayLoginResult? {
         val data = fields(response, setOf(200, 400, 401, 403)) ?: return null
         if (data["action"] != "onLoginError" || loggedIn(data["logged_in"]) != false) return null
-        val raw = data["error_orig"]?.takeIf { it.isNotBlank() } ?: data["error"].orEmpty()
-        val reason = decode(raw) ?: return GatewayLoginResult.REQUEST_REJECTED
-        return RouterErrorParser.classifyExplicit(reason)
+        val original = data["error_orig"].orEmpty().let(::decode)
+            ?.let(RouterErrorParser::classifyExplicit) ?: GatewayLoginResult.REQUEST_REJECTED
+        val translated = data["error"].orEmpty().let(::decode)
+            ?.let(RouterErrorParser::classifyExplicit) ?: GatewayLoginResult.REQUEST_REJECTED
+        // Reference considers both fields. Prefer a recognized original reason,
+        // but allow an explicit translation when original is unrecognized.
+        return if (original != GatewayLoginResult.REQUEST_REJECTED) original else translated
     }
 
     fun acknowledged(response: ExchangeResult): Boolean {

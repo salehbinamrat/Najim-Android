@@ -24,6 +24,7 @@ internal object SessionSpeech {
         "الرصيد المتبقي: " + amount(metrics.remainingTotal),
         "الوقت المتبقي: " + duration(metrics.timeLeftSeconds),
         "مدة الاتصال: " + duration(metrics.uptimeSeconds),
+        "إجمالي الاستهلاك: " + amount(SessionDisplay.total(metrics)),
         "التنزيل: " + amount(metrics.downloaded),
         "الرفع: " + amount(metrics.uploaded)
     ).joinToString(". ")

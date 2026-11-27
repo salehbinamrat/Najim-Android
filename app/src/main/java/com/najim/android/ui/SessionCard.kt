@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.najim.android.R
 import com.najim.android.auth.SessionDisplay
+import com.najim.android.auth.GatewayDiagnostic
 import com.najim.android.auth.LogoutResult
 import com.najim.android.auth.SessionStatus
 import com.najim.android.auth.SessionViewState
@@ -20,7 +21,8 @@ import com.najim.android.network.DiscoveryState
 internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                          enabled: Boolean, refresh: (Boolean, Boolean) -> Boolean,
                          clear: () -> Unit, logout: (SessionViewState.Snapshot, Boolean) -> Boolean,
-                         readAloud: (SessionViewState.Snapshot) -> Boolean) {
+                         readAloud: (SessionViewState.Snapshot) -> Boolean,
+                         diagnostics: List<GatewayDiagnostic>) {
     var confirmHttp by remember(network, state) { mutableStateOf(false) }
     var confirmLogout by remember(network, state) { mutableStateOf(false) }
     var readFailed by remember(network, state) { mutableStateOf(false) }
@@ -52,6 +54,8 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                 is SessionViewState.LogoutFinished -> StatusNotice(stringResource(logoutMessage(state.result)))
                 is SessionViewState.Snapshot -> {
                     SessionSnapshot(state.status)
+                    if (state.status !is SessionStatus.Active && state.status != SessionStatus.LoggedOut &&
+                        diagnostics.isNotEmpty()) StatusDiagnostics(diagnostics)
                     Text(stringResource(R.string.session_snapshot_note),
                         style = MaterialTheme.typography.bodySmall)
                     if (state.legacy) Text(stringResource(R.string.session_legacy_warning),
@@ -142,6 +146,7 @@ private fun SessionSnapshot(status: SessionStatus) {
             MetricGroup(R.string.session_usage_group, listOf(
                 MetricValue(R.string.session_download, SessionDisplay.amount(m.downloaded)),
                 MetricValue(R.string.session_upload, SessionDisplay.amount(m.uploaded)),
+                MetricValue(R.string.session_total_usage, SessionDisplay.amount(SessionDisplay.total(m))),
                 MetricValue(R.string.session_uptime, SessionDisplay.duration(m.uptimeSeconds))
             ))
         }
@@ -190,4 +195,33 @@ private fun MetricTile(metric: MetricValue, modifier: Modifier) {
             }
         }
     }
+}
+
+
+@Composable
+private fun StatusDiagnostics(reports: List<GatewayDiagnostic>) {
+    val lines = reports.map { report ->
+        val reason = stringResource(when (report.kind) {
+            GatewayDiagnostic.Kind.VPN -> R.string.diagnostic_vpn
+            GatewayDiagnostic.Kind.NETWORK_CHANGED -> R.string.diagnostic_network
+            GatewayDiagnostic.Kind.NO_RESPONSE -> R.string.diagnostic_no_response
+            GatewayDiagnostic.Kind.TOO_LARGE -> R.string.diagnostic_large
+            GatewayDiagnostic.Kind.ENDPOINT_REJECTED -> R.string.diagnostic_endpoint
+            GatewayDiagnostic.Kind.CALLBACK_ACTIVE -> R.string.diagnostic_active
+            GatewayDiagnostic.Kind.CALLBACK_LOGGED_OUT -> R.string.diagnostic_logged_out
+            GatewayDiagnostic.Kind.CALLBACK_UNKNOWN -> R.string.diagnostic_callback_unknown
+            GatewayDiagnostic.Kind.TRADITIONAL -> R.string.diagnostic_traditional
+            GatewayDiagnostic.Kind.UNRECOGNIZED -> R.string.diagnostic_unrecognized
+        })
+        report.protocol.scheme.uppercase(java.util.Locale.ROOT) + ": " + reason +
+            (report.httpCode?.let { " (HTTP $it)" } ?: "")
+    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val title = stringResource(R.string.diagnostic_title)
+    Text(title, style = MaterialTheme.typography.titleMedium)
+    for (line in lines) Text(line, style = MaterialTheme.typography.bodySmall)
+    OutlinedButton(onClick = {
+        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText(title, lines.joinToString("\n")))
+    }) { Text(stringResource(R.string.diagnostic_copy)) }
 }

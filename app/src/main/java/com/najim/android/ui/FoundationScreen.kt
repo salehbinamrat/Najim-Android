@@ -48,7 +48,9 @@ internal fun FoundationScreen(
     setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
     deleteCard: (NetworkProfile, SavedVoucher) -> Boolean,
-    sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
+    sessionState: SessionViewState,
+    statusDiagnostics: List<com.najim.android.auth.GatewayDiagnostic>,
+    refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
     logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
     galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean, SaveChoice?) -> Boolean, cancelLogin: () -> Unit
@@ -111,7 +113,7 @@ internal fun FoundationScreen(
             when (section) {
                 NajimSection.HOME -> {
                     HomeScreen(network, refreshNetwork, sessionState, !busy && !galleryActive,
-                        refreshSession, clearSession, logoutSession, readSessionAloud, openLogin = { navigate(NajimSection.LOGIN) })
+                        refreshSession, clearSession, logoutSession, readSessionAloud, statusDiagnostics, openLogin = { navigate(NajimSection.LOGIN) })
                 }
                 NajimSection.CARDS -> {
                     CardsScreen(network, profileState, selectedProfile, !busy && !galleryActive,
