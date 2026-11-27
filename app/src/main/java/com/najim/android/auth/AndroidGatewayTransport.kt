@@ -74,6 +74,7 @@ internal class AndroidGatewayTransport(context: Context) {
                 }
             },
             protocol = protocol,
-            allowInsecureHttp = allowInsecureHttp
+            allowInsecureHttp = allowInsecureHttp,
+            cancelled = cancelled
         )
 }

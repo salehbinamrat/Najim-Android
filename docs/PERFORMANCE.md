@@ -17,3 +17,6 @@ Use a low-memory ARM32 device and ARM64 device where available, include Android 
 
 
 Phase 10B adds stress cases: 50 consecutive catalog invalidations during a pending operation (one follow-up read at most), foreground network changes during gallery import, Activity stop with pending refresh, repeated recreation while a provider read is blocked (bounded gallery queue). Verify no credential fill after invalidation and no storage read launched by stop callback. Report actual measurements separately; provider blocking cannot be forcibly interrupted by cooperative checks.
+
+
+Phase 10C: test stalled and slow-drip local gateway responses, cancellation during read, slow POST response and repeated Activity recreation. Verify no false confirmation or automatic retry, per-exchange 15s cooperative budget, existing 5s socket timeouts, one running plus one queued gateway job, and independent status evidence. Record actual durations; blocked platform I/O may exceed cooperative budget. No physical network or device measurements yet.

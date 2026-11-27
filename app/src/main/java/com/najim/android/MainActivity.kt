@@ -318,7 +318,10 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         // Serialize requests even across Activity recreation. Never interrupt an uncertain POST and retry it.
-        private val loginWorker = Executors.newSingleThreadExecutor()
+        private val loginWorker = java.util.concurrent.ThreadPoolExecutor(
+            1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+            java.util.concurrent.ArrayBlockingQueue<Runnable>(1),
+            java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
         private val storageWorker = Executors.newSingleThreadExecutor()
         private val galleryWorker = java.util.concurrent.ThreadPoolExecutor(
             1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
