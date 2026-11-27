@@ -50,6 +50,19 @@ internal object NajmCallback {
         )), legacy)
     }
 
+    /** Only ordinary HTML/redirect or explicit unsupported endpoint may select
+     * the traditional parser. A damaged callback or failed exchange is not evidence
+     * that the callback contract is absent.
+     */
+    fun allowsTraditionalFallback(response: ExchangeResult): Boolean {
+        val received = response as? ExchangeResult.Received ?: return false
+        if (received.statusCode in setOf(301, 302, 303, 307, 308, 404, 405)) return true
+        if (received.statusCode != 200 || received.body.isEmpty() ||
+            received.body.size > GatewayTransport.MAX_RESPONSE_BYTES) return false
+        val text = received.body.toString(Charsets.UTF_8).removePrefix("\uFEFF").trimStart()
+        return text.startsWith("<") && '\uFFFD' !in text
+    }
+
     fun rejection(response: ExchangeResult): GatewayLoginResult? {
         val data = fields(response, setOf(200, 400, 401, 403)) ?: return null
         if (data["action"] != "onLoginError" || data["logged_in"] != "no") return null
@@ -75,7 +88,8 @@ internal class NajmCallbackFlow(
     private val current: () -> DiscoveryState,
     private val protocol: LoginProtocol,
     private val consent: Boolean,
-    private val pause: (Long) -> Unit = { Thread.sleep(it) }
+    private val pause: (Long) -> Unit = { Thread.sleep(it) },
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L }
 ) {
     fun login(selected: DiscoveryState.Ready, username: String, password: String?): GatewayLoginResult? {
         val invalid = LoginRequest.validateInput(selected, current(), username, password, protocol, consent)
@@ -89,7 +103,11 @@ internal class NajmCallbackFlow(
         val initialStatus = NajmCallback.status(baseline, protocol.requiresConsent)
         if (current() != selected) return GatewayLoginResult.NETWORK_CHANGED
         when (initialStatus) {
-            null -> return null
+            null -> return when {
+                NajmCallback.allowsTraditionalFallback(baseline) -> null
+                baseline !is ExchangeResult.Received -> GatewayLoginResult.TRANSPORT_UNAVAILABLE
+                else -> GatewayLoginResult.BASELINE_UNKNOWN
+            }
             is SessionStatus.Active -> return GatewayLoginResult.ALREADY_CONNECTED
             SessionStatus.LoggedOut -> Unit
             else -> return GatewayLoginResult.BASELINE_UNKNOWN
@@ -109,15 +127,23 @@ internal class NajmCallbackFlow(
         // Never POST again, including when the response was lost. Only confirm a
         // recognized acknowledgement with bounded independent read-only status queries.
         if (!NajmCallback.acknowledged(posted)) return GatewayLoginResult.SESSION_UNVERIFIED
-        for (delay in listOf(0L, 400L, 950L)) {
-            if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
+        val started = nowMillis()
+        // Allow delayed RouterOS accounting and transient read failures, but never
+        // retry the credential POST. The deadline is cooperative, not a socket timer.
+        for (delay in listOf(0L, 400L, 950L, 1500L, 2000L)) {
+            if (current() != selected || nowMillis() - started + delay >= CONFIRM_BUDGET_MS)
+                return GatewayLoginResult.SESSION_UNVERIFIED
             if (delay > 0) try { pause(delay) } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
                 return GatewayLoginResult.SESSION_UNVERIFIED
             }
-            if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
-            val observed = NajmCallback.status(read(selected), protocol.requiresConsent)
-            if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
+            if (current() != selected || nowMillis() - started >= CONFIRM_BUDGET_MS)
+                return GatewayLoginResult.SESSION_UNVERIFIED
+            val response = read(selected)
+            val observed = NajmCallback.status(response, protocol.requiresConsent)
+            if (current() != selected || response == ExchangeResult.NetworkChanged ||
+                nowMillis() - started >= CONFIRM_BUDGET_MS) return GatewayLoginResult.SESSION_UNVERIFIED
+            if (response == ExchangeResult.TransportFailure) continue
             when (observed) {
                 is SessionStatus.Active -> return if (observed.account.username != VoucherInput.normalize(username))
                     GatewayLoginResult.ACCOUNT_MISMATCH
@@ -128,5 +154,9 @@ internal class NajmCallbackFlow(
             }
         }
         return GatewayLoginResult.SESSION_UNVERIFIED
+    }
+
+    private companion object {
+        const val CONFIRM_BUDGET_MS = 18_000L
     }
 }

@@ -86,4 +86,59 @@ class NajmCallbackTest {
             { _, _ -> error("must not post") }, { current }, LoginProtocol.HTTP_PAP, true)
         assertEquals(GatewayLoginResult.NETWORK_CHANGED, changed.login(wifi, "0012", null))
     }
+    @Test fun malformedCallbackOrTransportFailureDoesNotFallBackToHtmlLogin() {
+        val cases = listOf(
+            reply("""{"logged_in":"no","action":"onStatusQuery","logged_in":"yes"}"""),
+            reply("OK"), reply("""{"action":"onLoginStart","logged_in":"no"}"""),
+            ExchangeResult.TransportFailure, ExchangeResult.ResponseTooLarge
+        )
+        for (response in cases) {
+            val flow = NajmCallbackFlow({ response }, { _, _ -> error("must not post") },
+                { wifi }, LoginProtocol.HTTP_PAP, true)
+            assertFalse(NajmCallback.allowsTraditionalFallback(response))
+            assertNotNull(flow.login(wifi, "0012", null))
+        }
+        assertTrue(NajmCallback.allowsTraditionalFallback(reply("<html>ordinary</html>")))
+        assertTrue(NajmCallback.allowsTraditionalFallback(reply("", 404)))
+    }
+
+    @Test fun delayedStatusAndTransientReadFailureAllowOnlyReadRetries() {
+        val reads = ArrayDeque(listOf(out, out, ExchangeResult.TransportFailure, out, out, active()))
+        var posts = 0
+        var time = 0L
+        val flow = NajmCallbackFlow({ reads.removeFirst() }, { _, _ -> posts++; ack },
+            { wifi }, LoginProtocol.HTTP_PAP, true, { time += it }, { time })
+        assertEquals(GatewayLoginResult.LEGACY_MATCHING_SESSION, flow.login(wifi, "0012", null))
+        assertEquals(1, posts)
+        assertTrue(reads.isEmpty())
+    }
+
+    @Test fun confirmationBudgetDiscardsLateMatchingResponse() {
+        var reads = 0
+        var time = 0L
+        val flow = NajmCallbackFlow({
+            if (++reads == 1) out else { time = 18_000L; active() }
+        }, { _, _ -> ack }, { wifi }, LoginProtocol.HTTP_PAP, true, {}, { time })
+        assertEquals(GatewayLoginResult.SESSION_UNVERIFIED, flow.login(wifi, "0012", null))
+        assertEquals(2, reads)
+    }
+
+    @Test fun changedNetworkDuringConfirmationDelayPreventsNextRead() {
+        var current: DiscoveryState = wifi
+        var reads = 0
+        val flow = NajmCallbackFlow({ reads++; out }, { _, _ -> ack }, { current },
+            LoginProtocol.HTTP_PAP, true, { current = wifi.copy(networkId = 8) })
+        assertEquals(GatewayLoginResult.SESSION_UNVERIFIED, flow.login(wifi, "0012", null))
+        assertEquals(2, reads)
+    }
+
+    @Test fun repeatedNegativeStatusStopsAtFiveReadsWithoutResending() {
+        var reads = 0
+        var posts = 0
+        val flow = NajmCallbackFlow({ reads++; out }, { _, _ -> posts++; ack },
+            { wifi }, LoginProtocol.HTTP_PAP, true, {})
+        assertEquals(GatewayLoginResult.SESSION_UNVERIFIED, flow.login(wifi, "0012", null))
+        assertEquals(6, reads)
+        assertEquals(1, posts)
+    }
 }

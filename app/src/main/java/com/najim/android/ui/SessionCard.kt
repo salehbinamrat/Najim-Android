@@ -126,14 +126,14 @@ private fun SessionSnapshot(status: SessionStatus) {
             }
             val m = status.account.metrics
             MetricGroup(R.string.session_balance_group, listOf(
-                MetricValue(R.string.session_remaining, m.remainingTotal?.reported),
+                MetricValue(R.string.session_remaining, SessionDisplay.amount(m.remainingTotal)),
                 MetricValue(R.string.session_time_left, SessionDisplay.duration(m.timeLeftSeconds)),
-                MetricValue(R.string.session_remaining_download, m.remainingDownload?.reported),
-                MetricValue(R.string.session_remaining_upload, m.remainingUpload?.reported)
+                MetricValue(R.string.session_remaining_download, SessionDisplay.amount(m.remainingDownload)),
+                MetricValue(R.string.session_remaining_upload, SessionDisplay.amount(m.remainingUpload))
             ))
             MetricGroup(R.string.session_usage_group, listOf(
-                MetricValue(R.string.session_download, m.downloaded?.reported),
-                MetricValue(R.string.session_upload, m.uploaded?.reported),
+                MetricValue(R.string.session_download, SessionDisplay.amount(m.downloaded)),
+                MetricValue(R.string.session_upload, SessionDisplay.amount(m.uploaded)),
                 MetricValue(R.string.session_uptime, SessionDisplay.duration(m.uptimeSeconds))
             ))
         }
