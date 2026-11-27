@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
             publish = { attemptState.value = it }
         )
         session = SessionRefreshController(loginWorker, { task -> main.post { task() } },
-            transport::refreshStatus, { sessionState.value = it })
+            transport::refreshStatus, { sessionState.value = it }, transport::logout)
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
             session.networkChanged(it)
@@ -75,6 +75,12 @@ class MainActivity : ComponentActivity() {
                                     galleryState.value != GalleryState.Idle) false
                                 else session.refresh(discoveryState.value, legacy, consent)
                             }, clearSession = session::invalidate,
+                            logoutSession = { expected, consent ->
+                                if (attemptState.value == LoginAttemptState.Running ||
+                                    attemptState.value == LoginAttemptState.Cancelling ||
+                                    galleryState.value != GalleryState.Idle) false
+                                else session.logout(discoveryState.value, expected, consent)
+                            },
                             galleryState = galleryState.value,
                             chooseImage = { mode ->
                                 if (gallery.beginPicker(mode)) {

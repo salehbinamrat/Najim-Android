@@ -197,4 +197,21 @@ class GatewayTransportTest {
             assertEquals(ExchangeResult.UnsupportedEndpoint, transport.submit(wifi, forged))
         }
     }
+    @Test fun logoutPostsFixedPathAndCookieParameter() {
+        val connection = FakeConnection()
+        val transport = GatewayTransport({ true }, { _, endpoint ->
+            assertEquals("https://10.0.3.1/logout", endpoint.toString())
+            connection
+        })
+        assertTrue(transport.logout(wifi) is ExchangeResult.Received)
+        assertEquals("POST", connection.requestMethod)
+        assertEquals("erase-cookie=on", connection.sent.toString("UTF-8"))
+        assertFalse(connection.instanceFollowRedirects)
+        assertTrue(connection.closed)
+    }
+
+    @Test fun logoutHttpWithoutConsentIsRejectedBeforeOpen() {
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_PAP)
+        assertEquals(ExchangeResult.UnsupportedEndpoint, transport.logout(wifi))
+    }
 }

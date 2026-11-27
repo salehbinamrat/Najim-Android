@@ -39,6 +39,13 @@ internal class GatewayTransport(
         return exchange(selected, endpoint, null)
     }
 
+    /** Fixed local endpoint, never accepts a caller-provided logout URL or credentials. */
+    fun logout(selected: DiscoveryState.Ready): ExchangeResult {
+        if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
+        val endpoint = URI(protocol.scheme, null, selected.gateway, -1, "/logout", null, null)
+        return exchange(selected, endpoint, "erase-cookie=on")
+    }
+
     private fun permitted() = !protocol.requiresConsent || allowInsecureHttp
 
     private fun validEndpoint(selected: DiscoveryState.Ready, endpoint: URI, path: String): Boolean =

@@ -29,6 +29,7 @@ internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
     sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
+    logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
     galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
 ) {
@@ -40,7 +41,7 @@ internal fun FoundationScreen(
     var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
-    val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling
+    val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling || sessionState == SessionViewState.LoggingOut
     val busy = loginBusy || sessionBusy
     val galleryActive = galleryState != GalleryState.Idle
     val validation = VoucherInput.validate(username)
@@ -53,7 +54,7 @@ internal fun FoundationScreen(
             Text(stringResource(R.string.foundation_notice))
             NetworkCard(network, refreshNetwork)
             SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
-                refresh = refreshSession, clear = clearSession)
+                refresh = refreshSession, clear = clearSession, logout = logoutSession)
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },

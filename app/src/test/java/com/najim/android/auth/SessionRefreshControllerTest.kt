@@ -13,6 +13,7 @@ class SessionRefreshControllerTest {
         val callbacks = ArrayDeque<() -> Unit>()
         val states = mutableListOf<SessionViewState>()
         var calls = 0
+        var logouts = 0
         var mode: LoginProtocol? = null
         var approved = false
         var duringRead: (() -> Boolean) -> Unit = {}
@@ -24,7 +25,11 @@ class SessionRefreshControllerTest {
                 approved = consent
                 duringRead(cancelled)
                 SessionStatus.Active(PortalPage.AccountStatus("000123"), protocol.requiresConsent)
-            }, { states.add(it) })
+            }, { states.add(it) }, { _, account, _, _, _ ->
+                assertEquals("000123", account)
+                logouts++
+                LogoutResult.LOGGED_OUT
+            })
         fun finish() {
             work.removeFirst().run()
             callbacks.removeFirst().invoke()
@@ -121,5 +126,36 @@ class SessionRefreshControllerTest {
     @Test fun unknownAndNegativeDurationsAreNotInvented() {
         assertNull(SessionDisplay.duration(null))
         assertNull(SessionDisplay.duration(-1))
+    }
+    @Test fun logoutRequiresCurrentSnapshotAndCannotOverlap() {
+        val f = Fixture()
+        f.controller.refresh(wifi, false, false)
+        f.finish()
+        val snapshot = f.states.last() as SessionViewState.Snapshot
+        assertTrue(f.controller.logout(wifi, snapshot, false))
+        assertFalse(f.controller.logout(wifi, snapshot, false))
+        assertFalse(f.controller.refresh(wifi, false, false))
+        f.finish()
+        assertEquals(1, f.logouts)
+        assertEquals(SessionViewState.LogoutFinished(LogoutResult.LOGGED_OUT), f.states.last())
+        assertFalse(f.controller.logout(wifi, snapshot, false))
+    }
+    @Test fun staleSnapshotCannotLogout() {
+        val f = Fixture()
+        f.controller.refresh(wifi, false, false)
+        f.finish()
+        val snapshot = f.states.last() as SessionViewState.Snapshot
+        f.controller.invalidate()
+        assertFalse(f.controller.logout(wifi, snapshot, false))
+    }
+    @Test fun legacyLogoutRequiresNewConsent() {
+        val f = Fixture()
+        f.controller.refresh(wifi, true, true)
+        f.finish()
+        val snapshot = f.states.last() as SessionViewState.Snapshot
+        assertFalse(f.controller.logout(wifi, snapshot, false))
+        assertTrue(f.controller.logout(wifi, snapshot, true))
+        f.finish()
+        assertEquals(1, f.logouts)
     }
 }
