@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
     private val profileState = mutableStateOf(ProfileState())
     private lateinit var session: SessionRefreshController
     private val sessionState = mutableStateOf<SessionViewState>(SessionViewState.Idle)
+    private val statusDiagnostics = mutableStateOf<List<com.najim.android.auth.GatewayDiagnostic>>(emptyList())
     private lateinit var gallery: GalleryImport
     private val galleryState = mutableStateOf<GalleryState>(GalleryState.Idle)
     private val picker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -83,8 +84,14 @@ class MainActivity : ComponentActivity() {
         // ordinary screenshots, screen recording and recent-task previews.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
-        val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
+        val transport = AndroidGatewayTransport(applicationContext) { selected, report, cancelled ->
+            main.post {
+                if (started && !isDestroyed && discoveryState.value == selected && !cancelled()) {
+                    statusDiagnostics.value = (statusDiagnostics.value + report).takeLast(2)
+                }
+            }
+        }
         speechPlayer = ArabicSpeech(applicationContext) { available ->
             speechAvailable.value = available
             val requested = pendingReadAloud
@@ -144,6 +151,9 @@ class MainActivity : ComponentActivity() {
             transport::refreshStatus, { next ->
                 val previous = sessionState.value
                 sessionState.value = next
+                if (next == SessionViewState.Loading || next == SessionViewState.Idle ||
+                    next == SessionViewState.Cancelling || next == SessionViewState.LoggingOut)
+                    statusDiagnostics.value = emptyList()
                 if (previous != next) {
                     pendingReadAloud = null
                     speechPlayer.silence()
@@ -166,7 +176,11 @@ class MainActivity : ComponentActivity() {
             NajimTheme(appearance.value) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     key(inputGeneration.value) {
-                        FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
+                        FoundationScreen(discoveryState.value, {
+                            val before = discoveryState.value
+                            discovery.refresh()
+                            if (before == discoveryState.value) refreshInitialSession()
+                        }, attemptState.value,
                             lifecycleOwner = this@MainActivity,
                             appearance = appearance.value,
                             appearanceReady = appearanceReady.value,
@@ -219,6 +233,7 @@ class MainActivity : ComponentActivity() {
                                 else profiles.deleteCard(discoveryState.value, profile, card)
                             },
                             sessionState = sessionState.value,
+                            statusDiagnostics = statusDiagnostics.value,
                             refreshSession = { legacy, consent ->
                                 if (attemptState.value == LoginAttemptState.Running ||
                                     attemptState.value == LoginAttemptState.Cancelling ||

@@ -10,7 +10,9 @@ import java.net.Proxy
 import javax.net.ssl.HttpsURLConnection
 
 /** Uses the exact selected Android Network, not the default process route. API 23+. */
-internal class AndroidGatewayTransport(context: Context) {
+internal class AndroidGatewayTransport(context: Context,
+    private val diagnostic: (DiscoveryState.Ready, GatewayDiagnostic, () -> Boolean) -> Unit = { _, _, _ -> }
+) {
     private val manager = context.applicationContext.getSystemService(ConnectivityManager::class.java)
 
     private fun resolve(selected: DiscoveryState.Ready) = try {
@@ -51,7 +53,7 @@ internal class AndroidGatewayTransport(context: Context) {
         val transport = createTransport(protocol, allowInsecureHttp, cancelled)
         return readStatus(selected, transport,
             { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
-            protocol, allowInsecureHttp)
+            protocol, allowInsecureHttp, report = { diagnostic(selected, it, cancelled) })
     }
 
     fun logout(selected: DiscoveryState.Ready, account: String, legacy: Boolean,
@@ -71,15 +73,25 @@ internal class AndroidGatewayTransport(context: Context) {
 
     private fun readStatus(selected: DiscoveryState.Ready, transport: GatewayTransport,
                            current: () -> DiscoveryState, protocol: LoginProtocol, consent: Boolean,
+                           report: (GatewayDiagnostic) -> Unit = {},
                            callbackUsed: (Boolean) -> Unit = {}): SessionStatus {
-        if (current() != selected) return SessionStatus.NetworkChanged
+        if (current() != selected) {
+            val vpn = runCatching { manager?.let { WifiNetworkResolver.capture(it).vpnActive } == true }.getOrDefault(false)
+            report(GatewayDiagnostic(protocol, if (vpn) GatewayDiagnostic.Kind.VPN else GatewayDiagnostic.Kind.NETWORK_CHANGED))
+            return SessionStatus.NetworkChanged
+        }
         if (protocol.requiresConsent && !consent) return SessionStatus.ConsentRequired
         val reply = transport.readCallbackStatus(selected)
         val parsed = NajmCallback.status(reply, protocol.requiresConsent)
-        if (current() != selected || reply == ExchangeResult.NetworkChanged) return SessionStatus.NetworkChanged
+        if (current() != selected || reply == ExchangeResult.NetworkChanged) {
+            report(GatewayDiagnostic(protocol, GatewayDiagnostic.Kind.NETWORK_CHANGED))
+            return SessionStatus.NetworkChanged
+        }
+        val fallback = parsed == null && NajmCallback.allowsTraditionalFallback(reply)
+        report(GatewayDiagnostic.from(protocol, reply, parsed, fallback))
         callbackUsed(parsed != null)
         if (parsed != null) return parsed
-        if (NajmCallback.allowsTraditionalFallback(reply))
+        if (fallback)
             return SessionStatusFlow(transport::read, current, protocol, consent).refresh(selected)
         return if (reply is ExchangeResult.Received) SessionStatus.Unknown else SessionStatus.Unavailable
     }

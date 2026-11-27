@@ -19,11 +19,12 @@ internal fun HomeScreen(network: DiscoveryState, refreshNetwork: () -> Unit,
                         refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
                         logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
                         readSessionAloud: (SessionViewState.Snapshot) -> Boolean,
+                        diagnostics: List<com.najim.android.auth.GatewayDiagnostic>,
                         openLogin: () -> Unit) {
     NetworkCard(network, refreshNetwork)
     SessionCard(network, session, enabled = enabled,
         refresh = refreshSession, clear = clearSession, logout = logoutSession,
-        readAloud = readSessionAloud)
+        readAloud = readSessionAloud, diagnostics = diagnostics)
     Button(onClick = openLogin, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.nav_login))
     }

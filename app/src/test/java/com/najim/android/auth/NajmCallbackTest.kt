@@ -180,4 +180,8 @@ class NajmCallbackTest {
         assertEquals(GatewayLoginResult.ROUTER_INVALID_PASSWORD, flow.login(wifi, "0012", "wrong"))
         assertEquals(1, reads)
     }
+    @Test fun recognizedTranslatedErrorWhenOriginalIsUnknown() {
+        val response = reply("""{"logged_in":"no","action":"onLoginError","error_orig":"unrecognized","error":"radius%20timeout"}""", 403)
+        assertEquals(GatewayLoginResult.ROUTER_RADIUS_TIMEOUT, NajmCallback.rejection(response))
+    }
 }

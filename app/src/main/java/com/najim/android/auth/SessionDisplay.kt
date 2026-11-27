@@ -23,6 +23,15 @@ internal object SessionDisplay {
         return String.format(Locale.ROOT, "%.2f %s", number, units[index])
     }
 
+    /** Sum only two exact byte counters; no inference from rounded or absent values. */
+    fun total(metrics: SessionMetrics): DataAmount? {
+        val up = metrics.uploaded?.exactBytes ?: return null
+        val down = metrics.downloaded?.exactBytes ?: return null
+        if (up < 0 || down < 0 || up > Long.MAX_VALUE - down) return null
+        val sum = up + down
+        return DataAmount("$sum B", sum)
+    }
+
     fun duration(seconds: Long?): String? {
         if (seconds == null || seconds < 0) return null
         val hours = seconds / 3600

@@ -214,4 +214,12 @@ class SessionRefreshControllerTest {
         assertEquals(listOf(LoginProtocol.HTTP_PAP, LoginProtocol.HTTPS_PAP), calls)
         assertFalse((states.last() as SessionViewState.Snapshot).legacy)
     }
+    @Test fun totalUsageOnlyAddsTwoExactNonnegativeCounters() {
+        val metrics = SessionMetrics(uploaded = DataAmount("12 B", 12), downloaded = DataAmount("34 B", 34))
+        assertEquals(46L, SessionDisplay.total(metrics)?.exactBytes)
+        assertNull(SessionDisplay.total(metrics.copy(uploaded = null)))
+        assertNull(SessionDisplay.total(metrics.copy(uploaded = DataAmount("2 MB", null))))
+        assertNull(SessionDisplay.total(metrics.copy(uploaded = DataAmount("overflow", Long.MAX_VALUE))))
+        assertNull(SessionDisplay.total(metrics.copy(uploaded = DataAmount("negative", -1))))
+    }
 }
