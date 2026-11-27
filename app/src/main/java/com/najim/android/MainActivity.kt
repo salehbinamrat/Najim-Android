@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var audioAllowed = false
     private val speechEnabled = mutableStateOf(false)
     private val speechAvailable = mutableStateOf(false)
+    private var pendingReadAloud: SessionViewState.Snapshot? = null
     private val speechSaving = mutableStateOf(false)
     private val speechFailed = mutableStateOf(false)
     private val feedbackEnabled = mutableStateOf(false)
@@ -84,7 +85,15 @@ class MainActivity : ComponentActivity() {
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
-        speechPlayer = ArabicSpeech(applicationContext) { speechAvailable.value = it }
+        speechPlayer = ArabicSpeech(applicationContext) { available ->
+            speechAvailable.value = available
+            val requested = pendingReadAloud
+            pendingReadAloud = null
+            val active = requested?.status as? com.najim.android.auth.SessionStatus.Active
+            if (available && resumed && requested != null && sessionState.value === requested && active != null) {
+                speechPlayer.speakMetrics(active.account.metrics)
+            }
+        }
         appearancePreferences = AppearancePreferences(applicationContext)
         storageWorker.execute {
             val loaded = runCatching { appearancePreferences.read() }
@@ -136,6 +145,7 @@ class MainActivity : ComponentActivity() {
                 val previous = sessionState.value
                 sessionState.value = next
                 if (previous != next) {
+                    pendingReadAloud = null
                     speechPlayer.silence()
                     guidance.emit(SpeechPolicy.session(next))
                 }
@@ -179,12 +189,16 @@ class MainActivity : ComponentActivity() {
                                     !session.busy) {
                                     tonePlayer.stop()
                                     if (!speechAvailable.value) {
+                                        // Initialize on first explicit tap and read only this still-current snapshot.
+                                        pendingReadAloud = null
+                                        speechPlayer.stop()
+                                        pendingReadAloud = expected
                                         speechPlayer.prepare()
                                         false
                                     } else speechPlayer.speakMetrics(active.account.metrics)
                                 } else false
                             },
-                            silenceAudio = { tonePlayer.stop(); speechPlayer.silence() },
+                            silenceAudio = { pendingReadAloud = null; tonePlayer.stop(); speechPlayer.silence() },
                             scanAccepted = { guidance.emit(SpeechCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
@@ -319,6 +333,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         resumed = false
+        pendingReadAloud = null
         syncGuidance()
         super.onPause()
     }

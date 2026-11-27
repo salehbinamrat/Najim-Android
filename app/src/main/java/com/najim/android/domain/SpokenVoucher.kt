@@ -16,6 +16,14 @@ internal object SpokenVoucher {
         if (alternatives.isEmpty() || alternatives.size > 5) return null
         return alternatives.map { parse(it) ?: return null }.distinct().singleOrNull()
     }
+    /** Alternatives are never chosen automatically. The user must select one.
+     * Ignore invalid transcripts without inferring digits from them.
+     */
+    fun reviewOptions(alternatives: List<String>): List<String> {
+        if (alternatives.isEmpty() || alternatives.size > 5 ||
+            alternatives.any { it.length > 512 }) return emptyList()
+        return alternatives.mapNotNull(::parse).distinct()
+    }
     private fun parse(raw: String): String? {
         if (raw.length > 512 || raw.any { it.isISOControl() ||
                 Character.getType(it) == Character.FORMAT.toInt() }) return null
