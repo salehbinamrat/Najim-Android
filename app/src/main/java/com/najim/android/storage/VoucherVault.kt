@@ -89,9 +89,13 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
             if (profile.gateway != save.record.gateway || profile.name != save.profileName ||
                 profile.retention != save.retention)
                 return@guarded VaultResult.Unavailable
-            val duplicate = old.records.firstOrNull {
+            val duplicates = old.records.filter {
                 it.profileId == profile.id && it.username == save.record.username
             }
+            // Legacy versions could store the same account under different protocols.
+            // Do not silently choose or delete one of those credentials.
+            if (duplicates.size > 1) return@guarded VaultResult.Unavailable
+            val duplicate = duplicates.singleOrNull()
             val record = if (duplicate == null) save.record else VaultRecord(duplicate.id, profile.id,
                 profile.gateway, save.record.protocol, save.record.username, save.record.password)
             putIn(old, record, profile.retention)

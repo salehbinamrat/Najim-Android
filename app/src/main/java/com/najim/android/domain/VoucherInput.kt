@@ -3,7 +3,9 @@ package com.najim.android.domain
 /** Local input validation only; never establishes validity on a hotspot. */
 object VoucherInput {
     enum class Error { EMPTY, WHITESPACE, CONTROL_CHARACTER, TOO_LONG }
-    data class Result(val value: String, val error: Error?)
+    data class Result(val value: String, val error: Error?) {
+        override fun toString() = "VoucherInput.Result(error=$error, value=redacted)"
+    }
 
     fun normalize(raw: String): String = buildString(raw.length) {
         raw.forEach { ch ->

@@ -356,4 +356,47 @@ class VoucherVaultTest {
         assertEquals(100, catalog.totalRecords)
         assertTrue(catalog.cards.groupBy { it.profileId }.values.all { it.size == 5 })
     }
+    @Test fun legacyDuplicateAccountsRequireExplicitResolutionWithoutEviction() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1", RetentionMode.AUTO_OLDEST)
+        val q = NetworkProfile(other, "Two", "10.0.0.1")
+        f.vault.createProfile(p)
+        f.vault.createProfile(q)
+        val first = record(user = "0012")
+        val duplicate = VaultRecord(UUID.randomUUID(), profile, p.gateway,
+            LoginProtocol.HTTP_PAP, "0012", "other-password")
+        assertTrue(f.vault.put(first) is VaultResult.Ok)
+        assertTrue(f.vault.put(duplicate) is VaultResult.Ok)
+        assertTrue(f.vault.put(record(other, "0012")) is VaultResult.Ok)
+        val before = f.backend.bytes!!.copyOf()
+        assertEquals(VaultResult.Unavailable, f.vault.saveConfirmed(confirmed(p, "0012")))
+        assertArrayEquals(before, f.backend.bytes)
+        assertEquals(2, f.list().size)
+        assertEquals(1, f.list(other).size)
+        assertTrue((f.vault.remove(profile, duplicate.id) as VaultResult.Ok).value)
+        assertTrue(f.vault.saveConfirmed(confirmed(p, "0012")) is VaultResult.Ok)
+        assertEquals(first.id, f.list().single().id)
+        assertEquals(1, f.list(other).size)
+    }
+
+    @Test fun wipeableBufferRetainsReturnedCopyButClearsOwnedStorage() {
+        val buffer = WipeableVaultBuffer()
+        val bytes = ByteArray(5000) { 42 }
+        buffer.write(bytes)
+        val copy = buffer.toByteArray()
+        buffer.wipe()
+        assertEquals(0, buffer.size())
+        assertArrayEquals(bytes, copy)
+        buffer.write(7)
+        assertArrayEquals(byteArrayOf(7), buffer.toByteArray())
+    }
+
+    @Test fun wipeableBufferRejectsGrowthBeyondPlaintextLimit() {
+        val buffer = WipeableVaultBuffer()
+        try {
+            buffer.write(ByteArray(VaultLimits.MAX_PLAINTEXT))
+            assertThrows(IllegalArgumentException::class.java) { buffer.write(1) }
+            assertEquals(VaultLimits.MAX_PLAINTEXT, buffer.size())
+        } finally { buffer.wipe() }
+    }
 }

@@ -75,3 +75,7 @@
 
 ## Phase 11B — whole-flow compatibility regressions
 - Revalidate selected Android network after baseline/form/error/status parsing before publishing evidence. Preserve decoded error text to avoid converting zero-width characters into a known rejection; no weakened authentication or save rules. Ten new synthetic integration-style JVM tests exercise all protocols and account authorization, error cases and same-IP network changes. No new dependencies or permissions. Field acceptance still outstanding; no version-specific compatibility claim.
+
+## Phase 12A — local-data security hardening
+- Both CI paths passed Phase 11B (45960648346), merged 5e7f0ce159ff499e4178d59510c400b4d09ab507. Field RouterOS acceptance remains outstanding.
+- Protect window captures with FLAG_SECURE, redact validation result diagnostics, wipe owned plaintext codec buffers (including growth copies), fail closed on ambiguous legacy duplicate accounts without silent deletion. Four new JVM tests; no new library, permission, format migration or network behavior changes. Real-device screenshot/recents, keyboard/accessibility, AndroidKeyStore and AtomicFile validation pending. See docs/SECURE-STORAGE.md.
