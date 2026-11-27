@@ -37,3 +37,11 @@ The tool checks the exact four filenames, candidate checksum file, valid signatu
 
 ### Phase 13C verifier hardening
 Require a verified APK Signature Scheme v2 signature, not v1 alone (minimum API 24). Owners may enable v2 and optionally v3; do not disable v2. Recheck all unsigned and signed hashes before producing the final report. The Release Preflight additionally exercises the complete verifier on all four freshly built unsigned candidates using a short-lived CI-only test certificate; checks signed checksums and rejection of a mismatched certificate. The private key and test-signed copies stay in a temporary directory and are removed, never uploaded or used as production release artifacts. Real owner signing, field acceptance and distribution authorization remain pending. This test does not establish production signing identity.
+
+
+## Phase 13D — individual downloads and launcher identity
+Phase 13C verified in run 45967205345: both jobs succeeded; OSV 134 components/0 matches, eight APK audits and checksums passed, all four disposable test-signed candidates verified and mismatched certificate rejected. Merged 6b4e99ba83912c3a13b986b98edccea99c937161. No production signing occurred.
+
+User requested separate downloads and an application icon. Each of the four Debug APKs and each of the four unsigned Release APKs now has an individual GitHub Actions artifact (Najim-full-arm32-debug, etc.). Download only the matching architecture/edition; GitHub Actions v4 wraps each individual file in its own ZIP. Two separate checksum artifacts contain the complete SHA256SUMS.txt for Debug and unsigned Release respectively. For final owner signing, extract all four unsigned APKs and the release-unsigned checksum manifest from the same approved run into one local directory; the final verifier still requires exactly four. All previous build, security and disposable-signature gates remain before APK upload. Older runs retain their original grouped archives. No production publishing.
+
+Original burgundy (#761C40) and white star/Wi-Fi vector launcher icon, shared across editions; vector fallback for API 24–25, adaptive for API 26+, themed monochrome for API 33+. Manifest references both icon and roundIcon; audit rejects absent/null launcher references. Actual launcher rendering on devices is not yet tested. No new application permissions or libraries.

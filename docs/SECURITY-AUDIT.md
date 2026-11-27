@@ -27,3 +27,6 @@ Phase 13B verified (45964841827): 134 Maven components, zero OSV matches; eight 
 
 
 13C follow-up: reject v1-only signatures, recheck complete input hashes, and test the verifier end-to-end using disposable CI-only signatures on all four release candidates plus a wrong-certificate negative case. No production key involved. Real signed artifact and field acceptance still pending.
+
+
+13C verified in 45967205345: 134 Maven components / 0 OSV matches, both jobs passed, eight APK audits and hashes and actual four-variant disposable v2 signer smoke test succeeded; mismatched signer rejected. 13D separates artifact uploads without weakening gates and adds a launcher icon presence check to packaged manifest audit. No production signing or field acceptance yet.

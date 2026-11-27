@@ -12,7 +12,8 @@ def manifest(extra="", components="", backup="false"):
     permissions = "".join(f'<uses-permission android:name="{p}"/>' for p in REQUIRED_PERMISSIONS)
     return ET.fromstring('<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
                          'package="com.najim.android">' + permissions + extra +
-                         f'<application android:allowBackup="{backup}">'
+                         f'<application android:allowBackup="{backup}" android:icon="@mipmap/ic_launcher" '
+                         'android:roundIcon="@mipmap/ic_launcher">'
                          '<activity android:name=".MainActivity" android:exported="true"/>'
                          + components + '</application></manifest>')
 
@@ -94,3 +95,12 @@ class AuditTest(unittest.TestCase):
                                               "{http://schemas.android.com/apk/res/android}targetSdkVersion": "35"}))
         _, errors = inspect_manifest(root, release=True)
         self.assertEqual([], errors)
+
+    def test_launcher_icon_required_in_packaged_manifest(self):
+        root = manifest()
+        app = root.find("application")
+        namespace = "{http://schemas.android.com/apk/res/android}"
+        app.attrib.pop(namespace + "icon")
+        app.set(namespace + "roundIcon", "@null")
+        _, errors = inspect_manifest(root)
+        self.assertEqual(["Missing launcher icon", "Missing launcher roundIcon"], errors)

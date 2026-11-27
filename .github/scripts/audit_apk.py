@@ -40,6 +40,9 @@ def inspect_manifest(root, release=False):
         raise ValueError("Missing application")
     if app.get(A + "allowBackup") != "false":
         errors.append("Backup must be disabled")
+    for attribute in ("icon", "roundIcon"):
+        if app.get(A + attribute) in (None, "", "@null", "0x0", "@0x00000000"):
+            errors.append("Missing launcher " + attribute)
     if release:
         for attribute in ("debuggable", "testOnly"):
             if app.get(A + attribute, "false") != "false":
@@ -73,7 +76,9 @@ def inspect_manifest(root, release=False):
             "allowBackup": app.get(A + "allowBackup"),
             "usesCleartextTraffic": app.get(A + "usesCleartextTraffic"),
             "debuggable": app.get(A + "debuggable", "false"),
-            "testOnly": app.get(A + "testOnly", "false")}, errors
+            "testOnly": app.get(A + "testOnly", "false"),
+            "icon": app.get(A + "icon"),
+            "roundIcon": app.get(A + "roundIcon")}, errors
 
 
 def elf_info(data, abi):
