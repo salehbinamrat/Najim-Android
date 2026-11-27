@@ -34,36 +34,34 @@ class FeedbackPolicyTest {
     }
     @Test fun defaultDisabledAndBackgroundEventsNotReplayed() {
         val played = mutableListOf<FeedbackCue>()
-        val gate = FeedbackGate({ played.add(it) }, {})
-        gate.resume()
-        gate.emit(FeedbackCue.CONFIRMED)
-        gate.pause()
-        gate.setEnabled(true)
-        gate.emit(FeedbackCue.CONFIRMED)
-        gate.resume()
+        val gate = GuidanceGate({ error("unexpected speech") }, { played.add(it) })
+        gate.foreground(true)
+        gate.emit(SpeechCue.LOGIN_CONFIRMED)
+        gate.foreground(false)
+        gate.configure(true, false)
+        gate.emit(SpeechCue.LOGIN_CONFIRMED)
+        gate.foreground(true)
         assertTrue(played.isEmpty())
-        gate.emit(FeedbackCue.SCAN_ACCEPTED)
+        gate.emit(SpeechCue.SCAN_ACCEPTED)
         assertEquals(listOf(FeedbackCue.SCAN_ACCEPTED), played)
     }
-    @Test fun pauseAndDisableStopAndSuppress() {
+    @Test fun pauseAndDisableSuppress() {
         val played = mutableListOf<FeedbackCue>()
-        var stops = 0
-        val gate = FeedbackGate({ played.add(it) }, { stops++ })
-        gate.setEnabled(true)
-        gate.resume()
-        gate.emit(FeedbackCue.CONFIRMED)
-        gate.pause()
-        gate.emit(FeedbackCue.FAILED)
-        gate.resume()
-        gate.setEnabled(false)
-        gate.emit(FeedbackCue.FAILED)
-        assertEquals(2, stops)
+        val gate = GuidanceGate({ error("unexpected speech") }, { played.add(it) })
+        gate.configure(true, false)
+        gate.foreground(true)
+        gate.emit(SpeechCue.LOGIN_CONFIRMED)
+        gate.foreground(false)
+        gate.emit(SpeechCue.LOGIN_FAILED)
+        gate.foreground(true)
+        gate.configure(false, false)
+        gate.emit(SpeechCue.LOGIN_FAILED)
         assertEquals(listOf(FeedbackCue.CONFIRMED), played)
     }
     @Test fun nullCueIsIgnored() {
-        val gate = FeedbackGate({ error("must not play") }, {})
-        gate.resume()
-        gate.setEnabled(true)
+        val gate = GuidanceGate({ error("must not speak") }, { error("must not play") })
+        gate.foreground(true)
+        gate.configure(true, true)
         gate.emit(null)
     }
 }

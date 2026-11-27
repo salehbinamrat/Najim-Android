@@ -39,7 +39,10 @@ import com.najim.android.feedback.SpeechCue
 class MainActivity : ComponentActivity() {
     private val tonePlayer = AndroidTonePlayer()
     private lateinit var speechPlayer: ArabicSpeech
-    private val guidance = GuidanceGate({ speechPlayer.speak(it) }, tonePlayer::play)
+    private val guidance = GuidanceGate({ cue ->
+        tonePlayer.stop()
+        speechPlayer.speak(cue)
+    }, tonePlayer::play)
     private var resumed = false
     private var audioAllowed = false
     private val speechEnabled = mutableStateOf(false)
