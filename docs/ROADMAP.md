@@ -82,3 +82,6 @@
 
 ## Phase 12B — supply-chain and portal hardening
 - Pin CI actions to verified prior-run SHAs, disable checkout token persistence, cap job duration. Inventory resolved runtime/test Maven dependencies and query OSV in Android Core; fail on matches or incomplete scan; report artifacts. Tighten CHAP regex to exact octal lengths and reject multiple hash calls; two new regression tests. No runtime dependency, permission or data format change. Full advisory scan, merged manifest/native artifact verification and device acceptance pending. See docs/SECURITY-AUDIT.md.
+
+## Phase 12C — APK integrity gate
+- Verified Phase 12B (45962335216): 131 resolved Maven components, zero OSV matches, both jobs successful. Add actual APK signature, manifest and native library inspection in Release Preflight; 16KB zip and 64-bit ELF alignment, required ARM32/ARM64, sensitive permission and exported-component checks. Six CI-only tests, no runtime dependencies. Actual packaged audit and device acceptance pending. Keep final Full/Lite ARM32/ARM64 packaging for Phase 13.
