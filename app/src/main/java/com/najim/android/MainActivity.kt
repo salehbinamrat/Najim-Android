@@ -134,7 +134,10 @@ class MainActivity : ComponentActivity() {
             transport::refreshStatus, { next ->
                 val previous = sessionState.value
                 sessionState.value = next
-                if (previous != next) guidance.emit(SpeechPolicy.session(next))
+                if (previous != next) {
+                    speechPlayer.silence()
+                    guidance.emit(SpeechPolicy.session(next))
+                }
             }, transport::logout)
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)

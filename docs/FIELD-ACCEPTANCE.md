@@ -18,3 +18,6 @@ Status: NOT EXECUTED. Use dedicated test devices and test vouchers, isolated lab
 | Distribution authorization | Owner-selected license and signing identity, field acceptance review | Pending |
 
 Do not alter production router or customer configurations. No automatic release publication. A failed or missing required gate blocks production distribution. See ROUTEROS-COMPATIBILITY.md, PERFORMANCE.md, SECURITY-AUDIT.md, RELEASE.md.
+
+## Voice feature acceptance (Phase 14A)
+All pending: Android 12+ device with installed Arabic local recognition (digits with leading zeros, ambiguity, timeout, denied/revoked permission, no model, airplane mode with lab Wi-Fi), microphone indicator stops on timeout/cancel/navigation/background, no candidate auto-submits, selected login mode preserved when using voice/OCR/QR, Android 7–11 fallback, local Arabic TTS summary only on user request with existing opt-in, stop spoken summary on network/session change, no account number or password read aloud. Inspect actual egress and memory/CPU on each edition/ABI; third-party recognition/TTS engine behavior not independently verified.

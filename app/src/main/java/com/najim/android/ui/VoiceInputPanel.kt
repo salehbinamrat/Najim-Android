@@ -86,7 +86,8 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
             notice = R.string.voice_unavailable
         } else if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             notice = R.string.voice_permission
-            permission.launch(Manifest.permission.RECORD_AUDIO)
+            try { permission.launch(Manifest.permission.RECORD_AUDIO) }
+            catch (_: RuntimeException) { notice = R.string.voice_unavailable }
         } else if (recognizer == null && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             try {
                 silenceAudio()

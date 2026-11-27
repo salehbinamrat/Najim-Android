@@ -84,6 +84,7 @@ internal fun FoundationScreen(
         (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
     fun navigate(next: NajimSection) {
         if (busy || galleryActive || next == section) return
+        silenceAudio()
         if (section == NajimSection.LOGIN) {
             username = ""
             password = ""
