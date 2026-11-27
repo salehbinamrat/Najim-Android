@@ -47,7 +47,7 @@ internal object SessionRedirect {
             // Recognize only an explicit immediate local login redirect or a
             // supported login form. Never navigate or execute page scripts.
             if (result.body.isEmpty() || result.body.size > GatewayTransport.MAX_RESPONSE_BYTES) return false
-            val doc = org.jsoup.Jsoup.parse(result.body.toString(Charsets.UTF_8), origin.resolve("/status").toString())
+            val doc = org.jsoup.Jsoup.parse(PortalText.decode(result.body) ?: return false, origin.resolve("/status").toString())
             if (doc.select("base").isNotEmpty()) return false
             val refresh = doc.select("meta[http-equiv=refresh]")
             if (refresh.isNotEmpty()) {

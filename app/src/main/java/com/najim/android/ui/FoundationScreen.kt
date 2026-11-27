@@ -82,8 +82,8 @@ internal fun FoundationScreen(
         }
     }
     val validation = VoucherInput.validate(username)
-    val validPassword = !usePassword || (password.isNotEmpty() && password.length <= 128 && password.none { it.isISOControl() } &&
-        (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
+    val validPassword = !usePassword || (password.isNotEmpty() &&
+        com.najim.android.auth.LoginRequest.validPassword(password, protocol))
     fun navigate(next: NajimSection) {
         if (busy || galleryActive || next == section) return
         silenceAudio()

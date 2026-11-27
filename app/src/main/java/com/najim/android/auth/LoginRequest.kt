@@ -87,12 +87,15 @@ internal object LoginRequest {
         if (protocol.requiresConsent && !allowInsecureHttp) return PreparationError.INSECURE_HTTP_NOT_APPROVED
         if (VoucherInput.validate(username).error != null) return PreparationError.INVALID_USERNAME
         val secret = password.orEmpty()
-        if (secret.length > 128 || secret.any { it.isISOControl() } ||
-            (protocol == LoginProtocol.HTTP_CHAP && secret.any { it.code > 127 })) {
+        if (!validPassword(secret, protocol)) {
             return PreparationError.INVALID_PASSWORD
         }
         return null
     }
+
+    internal fun validPassword(secret: String, protocol: LoginProtocol): Boolean =
+        secret.length <= 128 && !VoucherInput.hasInvalidCharacters(secret, rejectFormat = false) &&
+            (protocol != LoginProtocol.HTTP_CHAP || secret.all { it.code <= 127 })
 
     private fun reject(reason: PreparationError) = Preparation.Rejected(reason)
 

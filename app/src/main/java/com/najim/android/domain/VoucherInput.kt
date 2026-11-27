@@ -17,11 +17,26 @@ object VoucherInput {
         }
     }
 
+    /** Reject malformed UTF-16 before URL encoding can silently substitute bytes.
+     * Passwords preserve all well-formed non-control characters, including spaces.
+     */
+    internal fun hasInvalidCharacters(value: String, rejectFormat: Boolean): Boolean {
+        var index = 0
+        while (index < value.length) {
+            val point = Character.codePointAt(value, index)
+            if (point in 0xD800..0xDFFF || Character.isISOControl(point) ||
+                (rejectFormat && (Character.getType(point) == Character.FORMAT.toInt() || point == 0xFFFD)))
+                return true
+            index += Character.charCount(point)
+        }
+        return false
+    }
+
     fun validate(raw: String): Result {
         val value = normalize(raw)
         val error = when {
             value.isEmpty() -> Error.EMPTY
-            value.any { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() } -> Error.CONTROL_CHARACTER
+            hasInvalidCharacters(value, rejectFormat = true) -> Error.CONTROL_CHARACTER
             value.any { it.isWhitespace() || Character.isSpaceChar(it) } -> Error.WHITESPACE
             value.length > 128 -> Error.TOO_LONG
             else -> null

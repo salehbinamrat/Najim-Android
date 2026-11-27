@@ -14,7 +14,7 @@ internal object NajmCallback {
         val received = response as? ExchangeResult.Received ?: return null
         if (received.statusCode !in codes || received.body.isEmpty() ||
             received.body.size > GatewayTransport.MAX_RESPONSE_BYTES) return null
-        val text = received.body.toString(Charsets.UTF_8).removePrefix("\uFEFF").trim()
+        val text = (PortalText.decode(received.body) ?: return null).removePrefix("\uFEFF").trim()
         if (!text.startsWith("{") || '\uFFFD' in text) return null
         val values = linkedMapOf<String, String>()
         var cursor = 1
@@ -77,7 +77,7 @@ internal object NajmCallback {
         if (received.statusCode in setOf(301, 302, 303, 307, 308, 404, 405)) return true
         if (received.statusCode != 200 || received.body.isEmpty() ||
             received.body.size > GatewayTransport.MAX_RESPONSE_BYTES) return false
-        val text = received.body.toString(Charsets.UTF_8).removePrefix("\uFEFF").trimStart()
+        val text = (PortalText.decode(received.body) ?: return false).removePrefix("\uFEFF").trimStart()
         return text.startsWith("<") && '\uFFFD' !in text
     }
 

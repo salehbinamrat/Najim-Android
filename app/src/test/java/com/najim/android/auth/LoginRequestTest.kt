@@ -110,4 +110,10 @@ class LoginRequestTest {
     @Test fun connectionFailureIsNotVoucherFailure() {
         assertEquals(LoginOutcome.TransportFailure, LoginResponsePolicy.classify(null))
     }
+    @Test fun malformedUnicodeIsRejectedBeforeEncoding() {
+        assertEquals(Preparation.Rejected(PreparationError.INVALID_USERNAME), prepare(username = "12\uD800"))
+        assertEquals(Preparation.Rejected(PreparationError.INVALID_PASSWORD), prepare(password = "12\uDC00"))
+        val valid = prepare(password = " \uD83D\uDE00") as Preparation.Ready
+        assertEquals("username=00Ab&password=+%F0%9F%98%80", valid.formBody)
+    }
 }
