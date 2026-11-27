@@ -9,14 +9,22 @@ import java.io.IOException
 import java.util.UUID
 
 internal object VaultCodec {
-    private const val VERSION = 1
+    private const val LEGACY_VERSION = 1
+    private const val VERSION = 2
 
-    fun encode(records: List<VaultRecord>): ByteArray {
-        require(records.size <= VaultLimits.MAX_RECORDS)
-        require(records.map { it.id }.distinct().size == records.size)
+    fun encode(records: List<VaultRecord>): ByteArray = encodeDocument(VaultDocument(records))
+
+    fun encodeDocument(document: VaultDocument): ByteArray {
+        val records = document.records
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
             out.writeInt(VERSION)
+            out.writeInt(document.profiles.size)
+            for (profile in document.profiles) {
+                out.writeUTF(profile.id.toString())
+                out.writeUTF(profile.name)
+                out.writeUTF(profile.gateway)
+            }
             out.writeInt(records.size)
             for (record in records) {
                 out.writeUTF(record.id.toString())
@@ -32,10 +40,18 @@ internal object VaultCodec {
     }
 
     @Throws(IOException::class)
-    fun decode(bytes: ByteArray): List<VaultRecord> {
+    fun decode(bytes: ByteArray): List<VaultRecord> = decodeDocument(bytes).records
+
+    fun decodeDocument(bytes: ByteArray): VaultDocument {
         require(bytes.size <= VaultLimits.MAX_PLAINTEXT)
         return DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-            require(input.readInt() == VERSION)
+            val version = input.readInt()
+            require(version == VERSION || version == LEGACY_VERSION)
+            val profiles = if (version == VERSION) {
+                val count = input.readInt()
+                require(count in 0..VaultDocument.MAX_PROFILES)
+                List(count) { NetworkProfile(UUID.fromString(input.readUTF()), input.readUTF(), input.readUTF()) }
+            } else emptyList()
             val size = input.readInt()
             require(size in 0..VaultLimits.MAX_RECORDS)
             val records = List(size) {
@@ -48,8 +64,7 @@ internal object VaultCodec {
                 VaultRecord(id, profile, gateway, protocol, username, password)
             }
             require(input.read() == -1)
-            require(records.map { it.id }.distinct().size == size)
-            records
+            VaultDocument(records, profiles)
         }
     }
 }
