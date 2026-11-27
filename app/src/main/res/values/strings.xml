@@ -52,4 +52,17 @@
     <string name="router_device_restricted">الجهاز مرفوض بسبب قيد على عنوان الجهاز</string>
     <string name="router_radius_timeout">الحساب لم يستجب، ولا يعني ذلك انتهاء الكرت</string>
     <string name="router_no_valid_profile">لا توجد باقة صالحة حاليا</string>
+    <string name="scan_open">قراءة رقم الكرت بالكاميرا</string>
+    <string name="scan_title">مسح الكرت</string>
+    <string name="scan_instructions">وجه الكاميرا إلى رقم الكرت وحده، وتجنب إظهار أرقام أخرى.</string>
+    <string name="scan_searching">جار البحث عن رقم واضح…</string>
+    <string name="scan_ambiguous">ظهرت عدة أرقام. وجه الكاميرا إلى رقم الكرت فقط.</string>
+    <string name="scan_unstable">ثبت الهاتف حتى تتطابق القراءات.</string>
+    <string name="scan_failed">تعذرت قراءة الصورة. حاول مجددا أو أدخل الرقم يدويا.</string>
+    <string name="scan_camera_unavailable">تعذر تشغيل الكاميرا الخلفية. يمكنك إدخال الرقم يدويا.</string>
+    <string name="scan_permission_denied">لم يتم منح إذن الكاميرا. يمكنك المحاولة مجددا أو السماح به من إعدادات التطبيق.</string>
+    <string name="scan_confirm_hint">تأكد من مطابقة الرقم للكرت قبل استخدامه. لن يتم تسجيل الدخول تلقائيا.</string>
+    <string name="scan_use">استخدام الرقم المقروء</string>
+    <string name="scan_again">إعادة المسح</string>
+    <string name="scan_close">إغلاق الكاميرا</string>
 </resources>

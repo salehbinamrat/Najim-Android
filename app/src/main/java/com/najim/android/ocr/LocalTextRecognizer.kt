@@ -56,8 +56,11 @@ internal class LocalTextRecognizer(private val bounds: ScanBounds = ScanBounds()
 
     private fun finish(result: RecognitionResult, callback: (RecognitionResult) -> Unit) {
         inFlight = false
-        if (closed) recognizer.close()
-        callback(result)
+        try {
+            if (closed) recognizer.close()
+        } finally {
+            callback(result)
+        }
     }
 
     override fun close() {
