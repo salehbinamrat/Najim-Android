@@ -29,7 +29,28 @@ internal class AndroidGatewayTransport(context: Context) {
         if (protocol.requiresConsent && !allowInsecureHttp) {
             return GatewayLoginResult.INSECURE_HTTP_NOT_APPROVED
         }
-        val transport = GatewayTransport(
+        val transport = createTransport(protocol, allowInsecureHttp, cancelled)
+        return GatewayLoginFlow(
+            read = transport::read,
+            submit = transport::submit,
+            current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
+            protocol = protocol,
+            allowInsecureHttp = allowInsecureHttp
+        ).login(selected, username, password)
+    }
+
+    fun refreshStatus(selected: DiscoveryState.Ready, protocol: LoginProtocol,
+                      allowInsecureHttp: Boolean = false, cancelled: () -> Boolean = { false }): SessionStatus {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
+        val transport = createTransport(protocol, allowInsecureHttp, cancelled)
+        return SessionStatusFlow(transport::read,
+            { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
+            protocol, allowInsecureHttp).refresh(selected)
+    }
+
+    private fun createTransport(protocol: LoginProtocol, allowInsecureHttp: Boolean,
+                                cancelled: () -> Boolean): GatewayTransport =
+        GatewayTransport(
             stillSelected = { !cancelled() && resolve(it) != null },
             openBound = { expected, endpoint ->
                 val network = if (cancelled()) null else resolve(expected)
@@ -44,12 +65,4 @@ internal class AndroidGatewayTransport(context: Context) {
             protocol = protocol,
             allowInsecureHttp = allowInsecureHttp
         )
-        return GatewayLoginFlow(
-            read = transport::read,
-            submit = transport::submit,
-            current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable },
-            protocol = protocol,
-            allowInsecureHttp = allowInsecureHttp
-        ).login(selected, username, password)
-    }
 }

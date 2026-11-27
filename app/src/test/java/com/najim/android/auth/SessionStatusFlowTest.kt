@@ -1,0 +1,51 @@
+package com.najim.android.auth
+
+import com.najim.android.network.DiscoveryState
+import org.junit.Assert.*
+import org.junit.Test
+
+class SessionStatusFlowTest {
+    private val wifi = DiscoveryState.Ready(7L, "10.0.0.1")
+    private val active = ExchangeResult.Received(200,
+        "<h1>Welcome, 0012!</h1><form action='/logout'></form>".toByteArray())
+    private fun flow(response: ExchangeResult, protocol: LoginProtocol = LoginProtocol.HTTPS_PAP,
+                     consent: Boolean = false) = SessionStatusFlow({ selected, page ->
+        assertEquals(wifi, selected)
+        assertEquals(GatewayPage.STATUS, page)
+        response
+    }, { wifi }, protocol, consent)
+
+    @Test fun activeStatusHasIdentity() {
+        val result = flow(active).refresh(wifi) as SessionStatus.Active
+        assertEquals("0012", result.account.username)
+        assertFalse(result.legacy)
+    }
+    @Test fun legacyStatusRequiresConsent() {
+        val flow = SessionStatusFlow({ _, _ -> error("must not read") }, { wifi }, LoginProtocol.HTTP_PAP)
+        assertEquals(SessionStatus.ConsentRequired, flow.refresh(wifi))
+    }
+    @Test fun legacyEvidenceClearlyMarked() {
+        assertTrue((flow(active, LoginProtocol.HTTP_CHAP, true).refresh(wifi) as SessionStatus.Active).legacy)
+    }
+    @Test fun localLoginRedirectMeansLoggedOut() {
+        assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(302, ByteArray(0), "/login?dst=status")).refresh(wifi))
+    }
+    @Test fun externalRedirectIsUnknown() {
+        assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(302, ByteArray(0), "https://other.test/login")).refresh(wifi))
+    }
+    @Test fun networkChangeBeforeReadStops() {
+        val flow = SessionStatusFlow({ _, _ -> error("must not read") }, { DiscoveryState.NoWifi })
+        assertEquals(SessionStatus.NetworkChanged, flow.refresh(wifi))
+    }
+    @Test fun networkChangeDuringReadDiscardsResult() {
+        var current: DiscoveryState = wifi
+        val flow = SessionStatusFlow({ _, _ -> current = DiscoveryState.NoWifi; active }, { current })
+        assertEquals(SessionStatus.NetworkChanged, flow.refresh(wifi))
+    }
+    @Test fun transportFailureDoesNotMeanLoggedOut() {
+        assertEquals(SessionStatus.Unavailable, flow(ExchangeResult.TransportFailure).refresh(wifi))
+    }
+    @Test fun generic200NotLoggedIn() {
+        assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(200, "OK".toByteArray())).refresh(wifi))
+    }
+}

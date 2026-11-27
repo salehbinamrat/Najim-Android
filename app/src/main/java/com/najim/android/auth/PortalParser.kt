@@ -12,7 +12,7 @@ internal sealed interface PortalPage {
     class ChapForm(val challenge: ChapChallenge) : PortalPage {
         override fun toString() = "ChapForm(redacted)"
     }
-    class AccountStatus(val username: String) : PortalPage {
+    class AccountStatus(val username: String, val metrics: SessionMetrics = SessionMetrics()) : PortalPage {
         override fun toString() = "AccountStatus(redacted)"
     }
 }
@@ -34,7 +34,11 @@ internal object PortalParser {
             return PortalPage.Unknown
         }
         val doc = Jsoup.parse(html.toString(Charsets.UTF_8), page.toString())
-        if (doc.select("base, meta[http-equiv=refresh]").isNotEmpty()) return PortalPage.Unknown
+        if (doc.select("base").isNotEmpty()) return PortalPage.Unknown
+        val refresh = doc.select("meta[http-equiv=refresh]")
+        // Numeric refresh intervals are inert; URL redirects are rejected.
+        if (refresh.isNotEmpty() && (page.rawPath != "/status" ||
+                refresh.any { !it.attr("content").trim().matches(Regex("[0-9]{1,9}")) })) return PortalPage.Unknown
         return when (page.rawPath) {
             "/login" -> parseLogin(doc, gateway, page)
             "/status" -> parseStatus(doc, gateway, page)
@@ -78,24 +82,20 @@ internal object PortalParser {
 
     private fun parseStatus(doc: Document, gateway: URI, page: URI): PortalPage {
         if (doc.select("input[name=username], input[name=password]").isNotEmpty()) return PortalPage.Unknown
-        val logout = doc.select("a[href], form[action]").any {
+        val logout = doc.select("a[href], form[action]").filter(StatusFields::visible).any {
             val attribute = if (it.tagName() == "a") "href" else "action"
             localPath(it.attr(attribute), gateway, page, "/logout")
         }
         if (!logout) return PortalPage.Unknown
-        val headings = doc.select("h1").mapNotNull { welcome.matchEntire(it.text())?.groupValues?.get(1) }
-        val rows = doc.select("tr").mapNotNull { row ->
-            val cells = row.children().toList()
-            if (cells.size == 2 && cells.all { it.tagName() in setOf("td", "th") } &&
-                cells[0].text().trimEnd(':').lowercase() in setOf("user", "username", "اسم المستخدم")) {
-                cells[1].text()
-            } else null
-        }
+        val headings = doc.select("h1").filter(StatusFields::visible)
+            .mapNotNull { welcome.matchEntire(it.text())?.groupValues?.get(1) }
+        val rows = StatusFields.rows(doc).filter { it.first in setOf("user", "username", "اسم المستخدم") }
+            .map { it.second }
         val evidence = (headings + rows).distinct().singleOrNull() ?: return PortalPage.Unknown
         if (evidence.isBlank() || evidence.length > 128 || evidence.any { it.isWhitespace() || it.isISOControl() }) {
             return PortalPage.Unknown
         }
-        return PortalPage.AccountStatus(evidence)
+        return PortalPage.AccountStatus(evidence, StatusFields.parse(doc))
     }
 
     internal fun validForm(form: Element, gateway: URI, page: URI) =
