@@ -23,15 +23,19 @@ import com.najim.android.auth.LoginProtocol
 import com.najim.android.auth.SessionViewState
 import com.najim.android.domain.VoucherInput
 import com.najim.android.network.DiscoveryState
+import com.najim.android.storage.ProfileState
+import com.najim.android.storage.NetworkProfile
+import com.najim.android.storage.SaveChoice
 
 @Composable
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
+    profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
     sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
     logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
     galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
-    startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
+    startLogin: (String, String?, LoginProtocol, Boolean, SaveChoice?) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
     var username by remember { mutableStateOf("") }
@@ -40,9 +44,12 @@ internal fun FoundationScreen(
     var usePassword by remember { mutableStateOf(false) }
     var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
+    var selectedProfile by remember(network, profileState.profiles) { mutableStateOf<NetworkProfile?>(null) }
+    var saveApproved by remember(network, selectedProfile, username, password, protocol, usePassword) { mutableStateOf(false) }
+    var legacySaveApproved by remember(network, selectedProfile, username, password, protocol, usePassword, saveApproved) { mutableStateOf(false) }
     val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
     val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling || sessionState == SessionViewState.LoggingOut
-    val busy = loginBusy || sessionBusy
+    val busy = loginBusy || sessionBusy || profileState.busy
     val galleryActive = galleryState != GalleryState.Idle
     val validation = VoucherInput.validate(username)
     val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
@@ -55,6 +62,8 @@ internal fun FoundationScreen(
             NetworkCard(network, refreshNetwork)
             SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
                 refresh = refreshSession, clear = clearSession, logout = logoutSession)
+            ProfilePicker(network, profileState, selectedProfile, enabled = !busy && !galleryActive,
+                onSelect = { selectedProfile = it }, refresh = refreshProfiles, create = createProfile)
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
@@ -131,15 +140,33 @@ internal fun FoundationScreen(
                     Text(stringResource(R.string.login_consent), Modifier.padding(top = 12.dp))
                 }
             }
+            if (selectedProfile != null) {
+                Row {
+                    Checkbox(checked = saveApproved, enabled = !busy && !galleryActive,
+                        onCheckedChange = { saveApproved = it })
+                    Text(stringResource(R.string.profile_save_card), Modifier.padding(top = 12.dp))
+                }
+                if (saveApproved && protocol.requiresConsent) {
+                    Row {
+                        Checkbox(checked = legacySaveApproved, enabled = !busy && !galleryActive,
+                            onCheckedChange = { legacySaveApproved = it })
+                        Text(stringResource(R.string.profile_save_legacy), Modifier.padding(top = 12.dp))
+                    }
+                }
+            }
             Button(onClick = {
+                val choice = if (saveApproved) selectedProfile?.let { SaveChoice(it, legacySaveApproved) } else null
                 val approved = consent
                 consent = false
-                if (startLogin(username, if (usePassword) password else null, protocol, approved)) {
+                saveApproved = false
+                legacySaveApproved = false
+                if (startLogin(username, if (usePassword) password else null, protocol, approved, choice)) {
                     username = ""
                     password = ""
                 }
             }, modifier = Modifier.fillMaxWidth(), enabled = !busy && !galleryActive && network is DiscoveryState.Ready &&
-                validation.error == null && validPassword && (!protocol.requiresConsent || consent)) {
+                validation.error == null && validPassword && (!protocol.requiresConsent || consent) &&
+                (!saveApproved || (selectedProfile != null && (!protocol.requiresConsent || legacySaveApproved)))) {
                 Text(stringResource(R.string.login_submit))
             }
             if (loginBusy) {

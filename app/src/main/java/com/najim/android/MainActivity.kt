@@ -27,6 +27,9 @@ import com.najim.android.auth.SessionViewState
 import com.najim.android.network.DiscoveryState
 import com.najim.android.network.WifiDiscovery
 import com.najim.android.ui.FoundationScreen
+import com.najim.android.storage.AndroidVault
+import com.najim.android.storage.ProfileController
+import com.najim.android.storage.ProfileState
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
@@ -35,6 +38,8 @@ class MainActivity : ComponentActivity() {
     private val inputGeneration = mutableStateOf(0)
     private lateinit var discovery: WifiDiscovery
     private lateinit var attempts: LoginAttemptController
+    private lateinit var profiles: ProfileController
+    private val profileState = mutableStateOf(ProfileState())
     private lateinit var session: SessionRefreshController
     private val sessionState = mutableStateOf<SessionViewState>(SessionViewState.Idle)
     private lateinit var gallery: GalleryImport
@@ -48,11 +53,14 @@ class MainActivity : ComponentActivity() {
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
+        profiles = ProfileController(storageWorker, { task -> main.post { task() } },
+            AndroidVault.create(applicationContext), { profileState.value = it })
         attempts = LoginAttemptController(
             worker = loginWorker,
             dispatch = { task -> main.post { task() } },
             login = transport::login,
-            publish = { attemptState.value = it }
+            publish = { attemptState.value = it },
+            saveConfirmed = { profiles.save(it) }
         )
         session = SessionRefreshController(loginWorker, { task -> main.post { task() } },
             transport::refreshStatus, { sessionState.value = it }, transport::logout)
@@ -68,6 +76,9 @@ class MainActivity : ComponentActivity() {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
                             lifecycleOwner = this@MainActivity,
+                            profileState = profileState.value,
+                            refreshProfiles = { profiles.refresh() },
+                            createProfile = { name -> profiles.create(discoveryState.value, name) },
                             sessionState = sessionState.value,
                             refreshSession = { legacy, consent ->
                                 if (attemptState.value == LoginAttemptState.Running ||
@@ -88,11 +99,12 @@ class MainActivity : ComponentActivity() {
                                     catch (_: RuntimeException) { gallery.pickerResult(null) }
                                 }
                             }, confirmImage = gallery::confirm, cancelImage = gallery::cancel,
-                            startLogin = { user, password, mode, consent ->
-                                if (session.busy) false
+                            startLogin = { user, password, mode, consent, saveChoice ->
+                                if (session.busy || profiles.busy ||
+                                    (saveChoice != null && !profiles.accepts(saveChoice.profile))) false
                                 else {
                                     session.invalidate()
-                                    attempts.start(discoveryState.value, user, password, mode, consent)
+                                    attempts.start(discoveryState.value, user, password, mode, consent, saveChoice)
                                 }
                             }, cancelLogin = attempts::cancel)
                     }
@@ -104,10 +116,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         discovery.start()
+        profiles.refresh()
     }
 
     override fun onStop() {
         attempts.cancel()
+        profiles.clear()
         session.invalidate()
         gallery.stop()
         inputGeneration.value += 1
@@ -117,6 +131,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         attempts.dispose()
+        profiles.dispose()
         session.dispose()
         gallery.dispose()
         super.onDestroy()
@@ -125,6 +140,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         // Serialize requests even across Activity recreation. Never interrupt an uncertain POST and retry it.
         private val loginWorker = Executors.newSingleThreadExecutor()
+        private val storageWorker = Executors.newSingleThreadExecutor()
         private val galleryWorker = Executors.newSingleThreadExecutor()
     }
 }
