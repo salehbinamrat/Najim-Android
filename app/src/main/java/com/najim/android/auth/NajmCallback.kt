@@ -8,7 +8,7 @@ import java.net.URLDecoder
 internal object NajmCallback {
     // The reference emits a flat object of string values, URL-escaped identity/error.
     // Reject duplicate fields, malformed escapes, trailing content and other shapes.
-    private val member = Regex("""[ \t\r\n]*"([a-z_]+)"[ \t\r\n]*:[ \t\r\n]*"([^"\\\x00-\x1f]*)"[ \t\r\n]*([,}])""")
+    private val member = Regex("""[ \t\r\n]*"([a-z_]+)"[ \t\r\n]*:[ \t\r\n]*(?:"([^"\\\x00-\x1f]*)"|(true|false|1|0))[ \t\r\n]*([,}])""")
 
     private fun fields(response: ExchangeResult, codes: Set<Int>): Map<String, String>? {
         val received = response as? ExchangeResult.Received ?: return null
@@ -20,9 +20,12 @@ internal object NajmCallback {
         var cursor = 1
         repeat(16) {
             val match = member.matchAt(text, cursor) ?: return null
-            if (values.put(match.groupValues[1], match.groupValues[2]) != null) return null
+            val key = match.groupValues[1]
+            val primitive = match.groups[3]?.value
+            if (primitive != null && key != "logged_in") return null
+            if (values.put(key, primitive ?: match.groupValues[2]) != null) return null
             cursor = match.range.last + 1
-            if (match.groupValues[3] == "}") return values.takeIf { cursor == text.length }
+            if (match.groupValues[4] == "}") return values.takeIf { cursor == text.length }
         }
         return null
     }
@@ -31,13 +34,19 @@ internal object NajmCallback {
         URLDecoder.decode(value, "UTF-8").takeUnless { '\uFFFD' in it }
     } catch (_: IllegalArgumentException) { null }
 
+    private fun loggedIn(value: String?): Boolean? = when (value?.lowercase(java.util.Locale.ROOT)) {
+        "yes", "true", "1" -> true
+        "no", "false", "0" -> false
+        else -> null
+    }
+
     fun status(response: ExchangeResult, legacy: Boolean): SessionStatus? {
         val data = fields(response, setOf(200)) ?: return null
         if (data["action"] != "onStatusQuery") return null
-        if (data["logged_in"] == "no") {
+        if (loggedIn(data["logged_in"]) == false) {
             return if (data["username"].isNullOrEmpty()) SessionStatus.LoggedOut else SessionStatus.Unknown
         }
-        if (data["logged_in"] != "yes") return SessionStatus.Unknown
+        if (loggedIn(data["logged_in"]) != true) return SessionStatus.Unknown
         val user = data["username"]?.let(::decode) ?: return SessionStatus.Unknown
         if (VoucherInput.validate(user).error != null || VoucherInput.normalize(user) != user)
             return SessionStatus.Unknown
@@ -74,7 +83,7 @@ internal object NajmCallback {
 
     fun rejection(response: ExchangeResult): GatewayLoginResult? {
         val data = fields(response, setOf(200, 400, 401, 403)) ?: return null
-        if (data["action"] != "onLoginError" || data["logged_in"] != "no") return null
+        if (data["action"] != "onLoginError" || loggedIn(data["logged_in"]) != false) return null
         val raw = data["error_orig"]?.takeIf { it.isNotBlank() } ?: data["error"].orEmpty()
         val reason = decode(raw) ?: return GatewayLoginResult.REQUEST_REJECTED
         return RouterErrorParser.classifyExplicit(reason)
@@ -83,8 +92,8 @@ internal object NajmCallback {
     fun acknowledged(response: ExchangeResult): Boolean {
         val data = fields(response, setOf(200)) ?: return false
         return when (data["action"]) {
-            "onLoginStart" -> data["logged_in"] in setOf("yes", "no")
-            "onLoggedIn" -> data["logged_in"] == "yes"
+            "onLoginStart" -> loggedIn(data["logged_in"]) != null
+            "onLoggedIn" -> loggedIn(data["logged_in"]) == true
             else -> false
         }
     }
@@ -133,9 +142,11 @@ internal class NajmCallbackFlow(
         NajmCallback.rejection(posted)?.let {
             return if (current() == selected) it else GatewayLoginResult.SESSION_UNVERIFIED
         }
-        // Never POST again, including when the response was lost. Only confirm a
-        // recognized acknowledgement with bounded independent read-only status queries.
-        if (!NajmCallback.acknowledged(posted)) return GatewayLoginResult.SESSION_UNVERIFIED
+        // Never POST again. An ambiguous 2xx/3xx response or lost reply may
+        // follow a successful login. Independent matching status is still required.
+        val ambiguous = posted == ExchangeResult.TransportFailure ||
+            (posted is ExchangeResult.Received && posted.statusCode in 200..399)
+        if (!NajmCallback.acknowledged(posted) && !ambiguous) return GatewayLoginResult.SESSION_UNVERIFIED
         val started = nowMillis()
         // Allow delayed RouterOS accounting and transient read failures, but never
         // retry the credential POST. The deadline is cooperative, not a socket timer.
