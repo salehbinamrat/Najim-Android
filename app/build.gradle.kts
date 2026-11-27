@@ -13,6 +13,19 @@ android {
         versionCode = 1
         versionName = "0.0.1"
     }
+    flavorDimensions += listOf("edition", "arch")
+    productFlavors {
+        create("full") { dimension = "edition" }
+        create("lite") { dimension = "edition" }
+        create("arm32") {
+            dimension = "arch"
+            ndk { abiFilters += "armeabi-v7a" }
+        }
+        create("arm64") {
+            dimension = "arch"
+            ndk { abiFilters += "arm64-v8a" }
+        }
+    }
     buildFeatures { compose = true }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -24,7 +37,8 @@ kotlin { jvmToolchain(17) }
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation("org.jsoup:jsoup:1.24.1")
-    implementation("com.google.mlkit:text-recognition:16.0.1")
+    add("fullImplementation", "com.google.mlkit:text-recognition:16.0.1")
+    add("liteImplementation", "com.google.android.gms:play-services-mlkit-text-recognition:19.0.2")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
     val cameraVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraVersion")
@@ -47,8 +61,12 @@ tasks.register("writeDependencyInventory") {
     outputs.upToDateWhen { false }
     doLast {
         val components = sortedSetOf<String>()
-        for (name in listOf("debugRuntimeClasspath", "releaseRuntimeClasspath",
-            "debugUnitTestRuntimeClasspath")) {
+        val variants = listOf("fullArm32", "fullArm64", "liteArm32", "liteArm64")
+        val names = variants.flatMap { variant ->
+            listOf(variant + "DebugRuntimeClasspath", variant + "ReleaseRuntimeClasspath",
+                variant + "DebugUnitTestRuntimeClasspath")
+        }
+        for (name in names) {
             val graph = configurations.getByName(name).incoming.resolutionResult
             check(graph.allDependencies.none {
                 it is org.gradle.api.artifacts.result.UnresolvedDependencyResult

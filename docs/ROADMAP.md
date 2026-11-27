@@ -85,3 +85,7 @@
 
 ## Phase 12C — APK integrity gate
 - Verified Phase 12B (45962335216): 131 resolved Maven components, zero OSV matches, both jobs successful. Add actual APK signature, manifest and native library inspection in Release Preflight; 16KB zip and 64-bit ELF alignment, required ARM32/ARM64, sensitive permission and exported-component checks. Six CI-only tests, no runtime dependencies. Actual packaged audit and device acceptance pending. Keep final Full/Lite ARM32/ARM64 packaging for Phase 13.
+
+## Phase 13A — four debug preflight variants
+- Phase 12C passed both paths (45963075073): 131 components/0 OSV matches, APK 4 permissions/20 native libraries/0 audit findings. Merge 34152f54db111cb3b8ec576793d3f78d87aaf17c.
+- Full/Lite × ARM32/ARM64 product flavors, shared code, full bundled OCR, lite Google Play services OCR 19.0.2, shared bundled QR. Arabic edition guidance, no claim of Lite first-use offline OCR. Test/lint all four, scan all resolved runtime and test graphs, build and inspect four debug APKs after verification. Two CI audit tests added. Same package ID; no production signing or publication. See docs/RELEASE.md. Field gates remain required.

@@ -1,0 +1,5 @@
+<resources>
+    <string name="scan_local_hint">نسخة Lite: قد تحتاج قراءة النصوص إلى تنزيل النموذج من خدمات Google Play عند أول استخدام. استخدم QR أو الإدخال اليدوي عند تعذر القراءة. لا دخول تلقائيا.</string>
+    <string name="settings_scan_info">نسخة Lite: يعالج OCR الصور على الجهاز بعد توفر النموذج، وقد تتطلب تهيئته خدمات Google Play والإنترنت. قراءة QR مدمجة. لا دخول تلقائيا بعد المسح.</string>
+    <string name="scan_failed">تعذرت القراءة. قد يكون نموذج OCR غير جاهز في نسخة Lite. حاول لاحقا أو استخدم QR أو أدخل الرقم يدويا.</string>
+</resources>

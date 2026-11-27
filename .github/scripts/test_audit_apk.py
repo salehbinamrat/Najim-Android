@@ -2,7 +2,10 @@ import struct
 import unittest
 import xml.etree.ElementTree as ET
 
-from audit_apk import elf_info, inspect_manifest, REQUIRED_PERMISSIONS
+from audit_apk import elf_info, inspect_manifest, inspect_native, REQUIRED_PERMISSIONS
+import tempfile
+import zipfile
+from pathlib import Path
 
 
 def manifest(extra="", components="", backup="false"):
@@ -53,3 +56,22 @@ class AuditTest(unittest.TestCase):
             elf_info(elf64(), "armeabi-v7a")
         with self.assertRaises(ValueError):
             elf_info(elf64()[:64], "arm64-v8a")
+
+    def test_single_abi_package_gate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            apk = Path(temp) / "fixture.apk"
+            with zipfile.ZipFile(apk, "w") as archive:
+                archive.writestr("lib/arm64-v8a/libsample.so", elf64())
+            _, errors = inspect_native(apk, {"arm64-v8a"}, exact=True)
+            self.assertEqual([], errors)
+            _, errors = inspect_native(apk, {"armeabi-v7a"}, exact=True)
+            self.assertTrue(any("missing" in e for e in errors))
+            self.assertTrue(any("Unexpected native ABI" in e for e in errors))
+
+    def test_single_abi_package_rejects_unaligned_64_bit_library(self):
+        with tempfile.TemporaryDirectory() as temp:
+            apk = Path(temp) / "fixture.apk"
+            with zipfile.ZipFile(apk, "w") as archive:
+                archive.writestr("lib/arm64-v8a/libsample.so", elf64(4096))
+            _, errors = inspect_native(apk, {"arm64-v8a"}, exact=True)
+            self.assertTrue(any("not 16KB aligned" in e for e in errors))
