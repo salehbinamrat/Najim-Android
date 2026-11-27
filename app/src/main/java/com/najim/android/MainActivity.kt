@@ -31,13 +31,21 @@ import java.util.concurrent.Executors
 import com.najim.android.settings.AppearanceMode
 import com.najim.android.settings.AppearancePreferences
 import com.najim.android.feedback.AndroidTonePlayer
-import com.najim.android.feedback.FeedbackGate
-import com.najim.android.feedback.FeedbackPolicy
-import com.najim.android.feedback.FeedbackCue
+import com.najim.android.feedback.ArabicSpeech
+import com.najim.android.feedback.GuidanceGate
+import com.najim.android.feedback.SpeechPolicy
+import com.najim.android.feedback.SpeechCue
 
 class MainActivity : ComponentActivity() {
     private val tonePlayer = AndroidTonePlayer()
-    private val feedback = FeedbackGate(tonePlayer::play, tonePlayer::stop)
+    private lateinit var speechPlayer: ArabicSpeech
+    private val guidance = GuidanceGate({ speechPlayer.speak(it) }, tonePlayer::play)
+    private var resumed = false
+    private var audioAllowed = false
+    private val speechEnabled = mutableStateOf(false)
+    private val speechAvailable = mutableStateOf(false)
+    private val speechSaving = mutableStateOf(false)
+    private val speechFailed = mutableStateOf(false)
     private val feedbackEnabled = mutableStateOf(false)
     private val feedbackReady = mutableStateOf(false)
     private val feedbackSaving = mutableStateOf(false)
@@ -67,10 +75,12 @@ class MainActivity : ComponentActivity() {
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
+        speechPlayer = ArabicSpeech(applicationContext) { speechAvailable.value = it }
         appearancePreferences = AppearancePreferences(applicationContext)
         storageWorker.execute {
             val loaded = runCatching { appearancePreferences.read() }
             val audio = runCatching { appearancePreferences.readFeedbackEnabled() }
+            val speech = runCatching { appearancePreferences.readSpeechEnabled() }
             main.post {
                 if (!isDestroyed) {
                     appearance.value = loaded.getOrDefault(AppearanceMode.SYSTEM)
@@ -79,7 +89,10 @@ class MainActivity : ComponentActivity() {
                     feedbackEnabled.value = audio.getOrDefault(false)
                     feedbackFailed.value = audio.isFailure
                     feedbackReady.value = true
-                    feedback.setEnabled(feedbackEnabled.value)
+                    audioAllowed = feedbackEnabled.value && audio.isSuccess
+                    speechEnabled.value = speech.getOrDefault(false)
+                    speechFailed.value = speech.isFailure
+                    syncGuidance()
                 }
             }
         }
@@ -92,7 +105,7 @@ class MainActivity : ComponentActivity() {
             publish = { next ->
                 val previous = attemptState.value
                 attemptState.value = next
-                if (previous != next) feedback.emit(FeedbackPolicy.login(next))
+                if (previous != next) guidance.emit(SpeechPolicy.login(next))
             },
             saveConfirmed = { profiles.save(it) }
         )
@@ -100,7 +113,7 @@ class MainActivity : ComponentActivity() {
             transport::refreshStatus, { next ->
                 val previous = sessionState.value
                 sessionState.value = next
-                if (previous != next) feedback.emit(FeedbackPolicy.session(next))
+                if (previous != next) guidance.emit(SpeechPolicy.session(next))
             }, transport::logout)
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
@@ -128,7 +141,12 @@ class MainActivity : ComponentActivity() {
                             feedbackSaving = feedbackSaving.value,
                             feedbackFailed = feedbackFailed.value,
                             changeFeedback = ::changeFeedback,
-                            scanAccepted = { feedback.emit(FeedbackCue.SCAN_ACCEPTED) },
+                            speechEnabled = speechEnabled.value,
+                            speechAvailable = speechAvailable.value,
+                            speechSaving = speechSaving.value,
+                            speechFailed = speechFailed.value,
+                            changeSpeech = ::changeSpeech,
+                            scanAccepted = { guidance.emit(SpeechCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
                             createProfile = { name -> profiles.create(discoveryState.value, name) },
@@ -199,10 +217,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun changeFeedback(enabled: Boolean) {
-        if (!feedbackReady.value || feedbackSaving.value || enabled == feedbackEnabled.value) return
+        if (!feedbackReady.value || feedbackSaving.value || speechSaving.value ||
+            (enabled == feedbackEnabled.value && !feedbackFailed.value)) return
         feedbackSaving.value = true
         feedbackFailed.value = false
-        if (!enabled) feedback.setEnabled(false)
+        if (!enabled) {
+            audioAllowed = false
+            syncGuidance()
+        }
         val main = Handler(Looper.getMainLooper())
         storageWorker.execute {
             val saved = runCatching { appearancePreferences.writeFeedbackEnabled(enabled) }.getOrDefault(false)
@@ -211,8 +233,37 @@ class MainActivity : ComponentActivity() {
                     if (saved) feedbackEnabled.value = enabled
                     feedbackFailed.value = !saved
                     // Fail silent if disabling could not be persisted, until explicit retry.
-                    feedback.setEnabled(saved && enabled)
+                    audioAllowed = saved && enabled
+                    syncGuidance()
                     feedbackSaving.value = false
+                }
+            }
+        }
+    }
+
+    private fun syncGuidance() {
+        val speech = speechEnabled.value && !speechFailed.value && !speechSaving.value
+        guidance.configure(audioAllowed, speech)
+        guidance.foreground(resumed)
+        if (resumed && audioAllowed && speech) speechPlayer.prepare() else speechPlayer.stop()
+        if (!resumed || !audioAllowed || speech) tonePlayer.stop()
+    }
+
+    private fun changeSpeech(enabled: Boolean) {
+        if (!feedbackReady.value || !audioAllowed || feedbackSaving.value || speechSaving.value ||
+            (enabled == speechEnabled.value && !speechFailed.value)) return
+        speechSaving.value = true
+        speechFailed.value = false
+        syncGuidance()
+        val main = Handler(Looper.getMainLooper())
+        storageWorker.execute {
+            val saved = runCatching { appearancePreferences.writeSpeechEnabled(enabled) }.getOrDefault(false)
+            main.post {
+                if (!isDestroyed) {
+                    if (saved) speechEnabled.value = enabled
+                    speechFailed.value = !saved
+                    speechSaving.value = false
+                    syncGuidance()
                 }
             }
         }
@@ -220,11 +271,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        feedback.resume()
+        resumed = true
+        syncGuidance()
     }
 
     override fun onPause() {
-        feedback.pause()
+        resumed = false
+        syncGuidance()
         super.onPause()
     }
 
@@ -245,7 +298,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        feedback.pause()
+        resumed = false
+        syncGuidance()
         attempts.dispose()
         profiles.dispose()
         session.dispose()

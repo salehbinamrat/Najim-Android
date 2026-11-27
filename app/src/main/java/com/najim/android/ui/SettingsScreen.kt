@@ -17,7 +17,9 @@ import com.najim.android.storage.VaultLimits
 internal fun SettingsScreen(mode: AppearanceMode, ready: Boolean, saving: Boolean,
                             failed: Boolean, enabled: Boolean, change: (AppearanceMode) -> Unit,
                             feedbackEnabled: Boolean, feedbackReady: Boolean, feedbackSaving: Boolean,
-                            feedbackFailed: Boolean, changeFeedback: (Boolean) -> Unit) {
+                            feedbackFailed: Boolean, changeFeedback: (Boolean) -> Unit,
+                            speechEnabled: Boolean, speechAvailable: Boolean, speechSaving: Boolean,
+                            speechFailed: Boolean, changeSpeech: (Boolean) -> Unit) {
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.settings_appearance), Modifier.semantics { heading() },
@@ -41,10 +43,17 @@ internal fun SettingsScreen(mode: AppearanceMode, ready: Boolean, saving: Boolea
             Text(stringResource(R.string.settings_accessibility), Modifier.semantics { heading() },
                 style = MaterialTheme.typography.titleLarge)
             CheckChoice(stringResource(R.string.settings_feedback), feedbackEnabled,
-                feedbackReady && !feedbackSaving && enabled, changeFeedback)
+                feedbackReady && !feedbackSaving && !speechSaving && enabled, changeFeedback)
             Text(stringResource(R.string.settings_feedback_info), style = MaterialTheme.typography.bodySmall)
             if (!feedbackReady || feedbackSaving) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (feedbackFailed) StatusNotice(stringResource(R.string.settings_feedback_failed))
+            CheckChoice(stringResource(R.string.settings_speech), speechEnabled,
+                feedbackEnabled && !feedbackFailed && !feedbackSaving && !speechSaving && enabled, changeSpeech)
+            Text(stringResource(R.string.settings_speech_info), style = MaterialTheme.typography.bodySmall)
+            if (speechSaving) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (speechFailed) StatusNotice(stringResource(R.string.settings_speech_failed))
+            else if (feedbackEnabled && speechEnabled && !speechAvailable && !speechSaving)
+                Text(stringResource(R.string.settings_speech_unavailable), style = MaterialTheme.typography.bodySmall)
         }
     }
     OutlinedCard(Modifier.fillMaxWidth()) {

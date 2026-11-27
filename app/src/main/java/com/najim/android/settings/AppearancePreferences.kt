@@ -7,6 +7,11 @@ internal class AppearancePreferences(context: Context) {
     private val app = context.applicationContext
     private fun preferences() = app.getSharedPreferences("appearance", Context.MODE_PRIVATE)
 
+    fun readSpeechEnabled(): Boolean = preferences().getBoolean("speech_enabled", false)
+
+    fun writeSpeechEnabled(enabled: Boolean): Boolean =
+        preferences().edit().putBoolean("speech_enabled", enabled).commit()
+
     fun readFeedbackEnabled(): Boolean = preferences().getBoolean("feedback_enabled", false)
 
     fun writeFeedbackEnabled(enabled: Boolean): Boolean =

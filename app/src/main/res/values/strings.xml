@@ -174,4 +174,15 @@
     <string name="settings_feedback_info">نغمات اختيارية للنتائج وقبول المسح أثناء استخدام التطبيق. لا تنطق رقم الكرت أو كلمة المرور. تتبع مستوى صوت الوسائط في الهاتف.</string>
     <string name="settings_feedback_failed">تعذر قراءة أو حفظ خيار التنبيهات. تم إيقاف الصوت احترازيا.</string>
     <string name="scan_private_candidate">تم التعرف على رقم مرشح. الرقم مخفي عن قارئ الشاشة حفاظا على الخصوصية.</string>
+    <string name="settings_speech">توجيه صوتي عربي بدلا من النغمات</string>
+    <string name="settings_speech_info">يستخدم صوتا عربيا محليا إذا كان مثبتا ومتاحا. لا يتم تنزيل أصوات تلقائيا أو نطق بيانات الكرت. عند تعذر النطق تستخدم النغمات.</string>
+    <string name="settings_speech_unavailable">الصوت العربي المحلي غير جاهز أو غير متاح حاليا. ستستخدم النغمات بدلا منه.</string>
+    <string name="settings_speech_failed">تعذر حفظ أو قراءة إعداد النطق. تم تعطيل النطق احترازيا.</string>
+    <string name="speech_login_confirmed">تم التحقق من الجلسة.</string>
+    <string name="speech_login_caution">راجع نتيجة تسجيل الدخول على الشاشة.</string>
+    <string name="speech_login_failed">تعذر تسجيل الدخول. راجع الرسالة على الشاشة.</string>
+    <string name="speech_logout_confirmed">تم التحقق من انتهاء الجلسة.</string>
+    <string name="speech_logout_caution">راجع حالة الخروج على الشاشة.</string>
+    <string name="speech_logout_failed">تعذر تأكيد الخروج. راجع الرسالة على الشاشة.</string>
+    <string name="speech_scan_accepted">تم قبول الرقم المقروء. راجع حقول الدخول.</string>
 </resources>

@@ -40,6 +40,8 @@ internal fun FoundationScreen(
     appearanceFailed: Boolean, changeAppearance: (AppearanceMode) -> Unit,
     feedbackEnabled: Boolean, feedbackReady: Boolean, feedbackSaving: Boolean,
     feedbackFailed: Boolean, changeFeedback: (Boolean) -> Unit, scanAccepted: () -> Unit,
+    speechEnabled: Boolean, speechAvailable: Boolean, speechSaving: Boolean,
+    speechFailed: Boolean, changeSpeech: (Boolean) -> Unit,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
     setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
@@ -240,7 +242,8 @@ internal fun FoundationScreen(
                 }
                 NajimSection.SETTINGS -> SettingsScreen(appearance, appearanceReady,
                     appearanceSaving, appearanceFailed, !busy && !galleryActive, changeAppearance,
-                    feedbackEnabled, feedbackReady, feedbackSaving, feedbackFailed, changeFeedback)
+                    feedbackEnabled, feedbackReady, feedbackSaving, feedbackFailed, changeFeedback,
+                    speechEnabled, speechAvailable, speechSaving, speechFailed, changeSpeech)
             }
         }
         }
