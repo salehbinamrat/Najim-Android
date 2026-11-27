@@ -160,4 +160,73 @@ class VoucherVaultTest {
         assertEquals("VaultRecord(redacted)", record().toString())
         assertEquals("VaultResult.Ok(redacted)", VaultResult.Ok(record()).toString())
     }
+    @Test fun profilesPersistWithoutCardsAndAreEncrypted() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "Private network", "10.0.0.1")
+        assertTrue(f.vault.createProfile(p) is VaultResult.Ok)
+        val loaded = (f.vault.profiles() as VaultResult.Ok).value.single()
+        assertEquals(p.id, loaded.id)
+        assertEquals(p.name, loaded.name)
+        assertFalse(f.backend.bytes!!.toString(Charsets.UTF_8).contains(p.name))
+        assertTrue(f.list().isEmpty())
+    }
+    @Test fun profilesCanShareGatewayButNotNameOrId() {
+        val f = Fixture()
+        assertTrue(f.vault.createProfile(NetworkProfile(profile, "One", "10.0.0.1")) is VaultResult.Ok)
+        assertTrue(f.vault.createProfile(NetworkProfile(other, "Two", "10.0.0.1")) is VaultResult.Ok)
+        assertEquals(VaultResult.Unavailable, f.vault.createProfile(NetworkProfile(UUID.randomUUID(), "one", "10.0.0.2")))
+        assertEquals(VaultResult.Unavailable, f.vault.createProfile(NetworkProfile(profile, "Three", "10.0.0.2")))
+    }
+    @Test fun saveRequiresPersistedProfileAndDeduplicates() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1")
+        val wifi = com.najim.android.network.DiscoveryState.Ready(7L, p.gateway)
+        fun save(password: String) = requireNotNull(ConfirmedVoucherSave.authorize(p, wifi, wifi, "0012",
+            password, LoginProtocol.HTTPS_PAP, com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION, true))
+        assertEquals(VaultResult.Unavailable, f.vault.saveConfirmed(save("first")))
+        assertTrue(f.vault.createProfile(p) is VaultResult.Ok)
+        assertTrue(f.vault.saveConfirmed(save("first")) is VaultResult.Ok)
+        val id = f.list().single().id
+        assertTrue(f.vault.saveConfirmed(save("second")) is VaultResult.Ok)
+        assertEquals(id, f.list().single().id)
+        assertEquals("second", f.list().single().password)
+        assertTrue((f.vault.remove(profile, id) as VaultResult.Ok).value)
+        assertEquals(profile, (f.vault.profiles() as VaultResult.Ok).value.single().id)
+    }
+    @Test fun profileGatewayCannotBeChangedByRecord() {
+        val f = Fixture()
+        f.vault.createProfile(NetworkProfile(profile, "One", "10.0.0.2"))
+        assertEquals(VaultResult.Unavailable, f.vault.put(record()))
+    }
+    @Test fun legacyDocumentRemainsReadableAndCannotSilentlyAdoptOrphan() {
+        val f = Fixture()
+        val r = record()
+        val bytes = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(bytes).use { out ->
+            out.writeInt(1)
+            out.writeInt(1)
+            out.writeUTF(r.id.toString())
+            out.writeUTF(r.profileId.toString())
+            out.writeUTF(r.gateway)
+            out.writeUTF(r.protocol.name)
+            out.writeUTF(r.username)
+            out.writeBoolean(true)
+            out.writeUTF(requireNotNull(r.password))
+        }
+        val key = f.keys.create()
+        f.backend.replace(VaultCipher.seal(key, bytes.toByteArray()))
+        assertEquals(r.id, f.list().single().id)
+        assertTrue((f.vault.profiles() as VaultResult.Ok).value.isEmpty())
+        assertEquals(VaultResult.Unavailable, f.vault.createProfile(NetworkProfile(profile, "One", r.gateway)))
+        assertTrue(f.vault.createProfile(NetworkProfile(other, "Two", r.gateway)) is VaultResult.Ok)
+        assertEquals(r.id, f.list().single().id)
+    }
+    @Test fun profileLimitDoesNotEvict() {
+        val f = Fixture()
+        repeat(VaultDocument.MAX_PROFILES) { index ->
+            assertTrue(f.vault.createProfile(NetworkProfile(UUID.randomUUID(), "Network " + index, "10.0.0.1")) is VaultResult.Ok)
+        }
+        assertEquals(VaultResult.Full, f.vault.createProfile(NetworkProfile(UUID.randomUUID(), "Extra", "10.0.0.1")))
+        assertEquals(VaultDocument.MAX_PROFILES, (f.vault.profiles() as VaultResult.Ok).value.size)
+    }
 }
