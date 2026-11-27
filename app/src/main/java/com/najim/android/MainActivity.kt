@@ -83,6 +83,16 @@ class MainActivity : ComponentActivity() {
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
                             createProfile = { name -> profiles.create(discoveryState.value, name) },
+                            loadCard = { profile, card, fill ->
+                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                    attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
+                                else profiles.loadCard(discoveryState.value, profile, card, fill)
+                            },
+                            deleteCard = { profile, card ->
+                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                    attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
+                                else profiles.deleteCard(discoveryState.value, profile, card)
+                            },
                             sessionState = sessionState.value,
                             refreshSession = { legacy, consent ->
                                 if (attemptState.value == LoginAttemptState.Running ||

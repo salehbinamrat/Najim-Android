@@ -18,3 +18,10 @@
 - One-attempt opt-in to save original normalized credentials after the actual LoginAttemptController result; separate opt-in for legacy HTTP evidence. Reject wrong gateway, missing approval, failed/mismatched results, cancelled or disposed attempts. The vault rechecks the persisted profile. No automatic login.
 - Serial storage worker; no disk or key generation on the Compose thread. On network change or Activity stop, clear catalog state and cancel queued work; a write that has already begun may finish atomically. Refresh catalog on start. Storage failure does not alter authentication result.
 - 9 additional JVM tests for actual attempt-bound save and profile controller; device tests and saved-card UI/reuse/deletion remain 07C and field acceptance.
+
+## Phase 07C — saved voucher selection and deletion
+- Read a single encrypted catalog snapshot, expose only masked account, record UUID, profile UUID and protocol to presentation; do not expose raw credentials in lists. Existing v1 orphan records are not shown or adopted.
+- Explicit selected profile on current gateway and current catalog object identity required for load/delete. No automatic selection based on gateway. Separate confirmation for loading and deleting. Load one record on serial worker with persisted profile check, fill masked form only, reset HTTP/save consent; no automatic login or network request. Clear form on network/profile change and before deleting.
+- Delete only from local vault, not RouterOS. No cloud sync, no backup, no silent eviction. Current UI manages cards for manually selected profiles matching current gateway; offline catalog management and deleting/renaming profiles are not implemented.
+- Cancel queued operations and ignore stale completion on lifecycle/network change; a write already started may complete. Decrypted credentials exist transiently in process memory; no forensic deletion guarantee.
+- 7 added JVM tests for masked catalog, scope, explicit selection, stale callbacks, and deletion. Real AndroidKeyStore, Compose UI and device acceptance remain pending. No new libraries or permissions.

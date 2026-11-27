@@ -80,4 +80,83 @@ class ProfileControllerTest {
         assertTrue((f.vault.list(profile.id) as VaultResult.Ok).value.isEmpty())
         assertFalse(f.state.ready)
     }
+    private fun savedFixture(): Fixture {
+        val f = Fixture()
+        f.controller.refresh()
+        f.finish()
+        f.controller.create(wifi, "Network")
+        f.finish()
+        val p = f.state.profiles.single()
+        val save = requireNotNull(ConfirmedVoucherSave.authorize(p, wifi, wifi, "000123", "secret",
+            LoginProtocol.HTTPS_PAP, GatewayLoginResult.MATCHING_SESSION, true))
+        f.controller.save(save)
+        f.finish()
+        return f
+    }
+    @Test fun catalogExposesOnlyMaskedAccount() {
+        val f = savedFixture()
+        val card = f.state.cards.single()
+        assertEquals("•••• 0123", card.maskedAccount)
+        assertEquals(f.state.profiles.single().id, card.profileId)
+        assertEquals("SavedVoucher(redacted)", card.toString())
+        assertEquals("ProfileState(redacted)", f.state.toString())
+    }
+    @Test fun explicitLoadOnlyFillsAfterWorker() {
+        val f = savedFixture()
+        var loaded: VaultRecord? = null
+        assertTrue(f.controller.loadCard(wifi, f.state.profiles.single(), f.state.cards.single()) { loaded = it })
+        assertNull(loaded)
+        f.finish()
+        assertEquals("000123", loaded?.username)
+        assertEquals("secret", loaded?.password)
+        assertEquals(ProfileNotice.LOADED, f.state.notice)
+    }
+    @Test fun wrongGatewayAndStaleCardCannotLoad() {
+        val f = savedFixture()
+        val p = f.state.profiles.single()
+        val c = f.state.cards.single()
+        assertFalse(f.controller.loadCard(wifi.copy(gateway = "10.0.0.2"), p, c) { error("must not fill") })
+        val copy = SavedVoucher(c.id, c.profileId, c.maskedAccount, c.protocol)
+        assertFalse(f.controller.loadCard(wifi, p, copy) { error("must not fill") })
+        assertTrue(f.work.isEmpty())
+    }
+    @Test fun wrongProfileCannotLoadOrDeleteEvenAtSameGateway() {
+        val f = savedFixture()
+        assertTrue(f.controller.create(wifi, "Other"))
+        f.finish()
+        val other = f.state.profiles.single { it.name == "Other" }
+        val c = f.state.cards.single()
+        assertFalse(f.controller.loadCard(wifi, other, c) { error("must not fill") })
+        assertFalse(f.controller.deleteCard(wifi, other, c))
+    }
+    @Test fun clearSuppressesCompletedButUndeliveredLoad() {
+        val f = savedFixture()
+        var filled = false
+        f.controller.loadCard(wifi, f.state.profiles.single(), f.state.cards.single()) { filled = true }
+        f.work.removeFirst().run()
+        f.controller.clear()
+        f.callbacks.removeFirst().invoke()
+        assertFalse(filled)
+        assertTrue(f.state.cards.isEmpty())
+    }
+    @Test fun deletionRemovesOnlyRequestedCard() {
+        val f = savedFixture()
+        val p = f.state.profiles.single()
+        val c = f.state.cards.single()
+        assertTrue(f.controller.deleteCard(wifi, p, c))
+        assertFalse(f.controller.deleteCard(wifi, p, c))
+        f.finish()
+        assertEquals(ProfileNotice.DELETED, f.state.notice)
+        assertTrue(f.state.cards.isEmpty())
+        assertTrue((f.vault.list(p.id) as VaultResult.Ok).value.isEmpty())
+        assertEquals(p.id, f.state.profiles.single().id)
+    }
+    @Test fun clearCancelsQueuedDeletion() {
+        val f = savedFixture()
+        val p = f.state.profiles.single()
+        f.controller.deleteCard(wifi, p, f.state.cards.single())
+        f.controller.clear()
+        f.finish()
+        assertEquals(1, (f.vault.list(p.id) as VaultResult.Ok).value.size)
+    }
 }

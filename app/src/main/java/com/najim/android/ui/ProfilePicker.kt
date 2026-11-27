@@ -53,6 +53,9 @@ internal fun ProfilePicker(network: DiscoveryState, state: ProfileState, selecte
                 ProfileNotice.FULL -> R.string.profile_full
                 ProfileNotice.UNAVAILABLE -> R.string.profile_unavailable
                 ProfileNotice.INVALID -> R.string.profile_invalid
+                ProfileNotice.DELETED -> R.string.saved_deleted
+                ProfileNotice.LOADED -> R.string.saved_loaded
+                ProfileNotice.NOT_FOUND -> R.string.saved_not_found
             }
             if (message != null) Text(stringResource(message))
         }

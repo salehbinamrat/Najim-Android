@@ -6,13 +6,14 @@ import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal enum class ProfileNotice { NONE, CREATED, SAVED, FULL, UNAVAILABLE, INVALID }
+internal enum class ProfileNotice { NONE, CREATED, SAVED, FULL, UNAVAILABLE, INVALID, DELETED, LOADED, NOT_FOUND }
 
 internal class ProfileState(
     val profiles: List<NetworkProfile> = emptyList(),
     val ready: Boolean = false,
     val busy: Boolean = false,
-    val notice: ProfileNotice = ProfileNotice.NONE
+    val notice: ProfileNotice = ProfileNotice.NONE,
+    val cards: List<SavedVoucher> = emptyList()
 ) {
     override fun toString() = "ProfileState(redacted)"
 }
@@ -38,7 +39,7 @@ internal class ProfileController(
         if (disposed || busy || !state.ready || network !is DiscoveryState.Ready) return false
         val profile = try { NetworkProfile(UUID.randomUUID(), name.trim(), network.gateway) }
         catch (_: IllegalArgumentException) {
-            set(ProfileState(state.profiles, true, notice = ProfileNotice.INVALID))
+            set(ProfileState(state.profiles, true, notice = ProfileNotice.INVALID, cards = state.cards))
             return false
         }
         return launch {
@@ -57,22 +58,59 @@ internal class ProfileController(
         }
     }
 
+    private fun acceptsCard(network: DiscoveryState, profile: NetworkProfile, card: SavedVoucher): Boolean =
+        accepts(profile) && network is DiscoveryState.Ready && network.gateway == profile.gateway &&
+            card.profileId == profile.id && state.cards.any { it === card }
+
+    fun loadCard(network: DiscoveryState, profile: NetworkProfile, card: SavedVoucher,
+                 fill: (VaultRecord) -> Unit): Boolean {
+        if (!acceptsCard(network, profile, card)) return false
+        val catalog = state
+        var record: VaultRecord? = null
+        return launch(onAccepted = {
+            record?.let(fill)
+            record = null
+        }) {
+            val result = vault.readSelected(profile, card.id)
+            record = (result as? VaultResult.Ok)?.value
+            val message = when {
+                result !is VaultResult.Ok -> ProfileNotice.UNAVAILABLE
+                record == null -> ProfileNotice.NOT_FOUND
+                else -> ProfileNotice.LOADED
+            }
+            if (message == ProfileNotice.LOADED) ProfileState(catalog.profiles, true,
+                notice = message, cards = catalog.cards)
+            else readCatalog(message)
+        }
+    }
+
+    fun deleteCard(network: DiscoveryState, profile: NetworkProfile, card: SavedVoucher): Boolean {
+        if (!acceptsCard(network, profile, card)) return false
+        return launch {
+            val result = vault.remove(profile.id, card.id)
+            readCatalog(when (result) {
+                is VaultResult.Ok -> if (result.value) ProfileNotice.DELETED else ProfileNotice.NOT_FOUND
+                else -> ProfileNotice.UNAVAILABLE
+            })
+        }
+    }
+
     private fun notice(result: VaultResult<Unit>, success: ProfileNotice): ProfileNotice = when (result) {
         is VaultResult.Ok -> success
         VaultResult.Full -> ProfileNotice.FULL
         VaultResult.Unavailable -> ProfileNotice.UNAVAILABLE
     }
 
-    private fun readCatalog(notice: ProfileNotice): ProfileState = when (val result = vault.profiles()) {
-        is VaultResult.Ok -> ProfileState(result.value, true, notice = notice)
+    private fun readCatalog(notice: ProfileNotice): ProfileState = when (val result = vault.catalog()) {
+        is VaultResult.Ok -> ProfileState(result.value.profiles, true, notice = notice, cards = result.value.cards)
         else -> ProfileState(notice = ProfileNotice.UNAVAILABLE)
     }
 
-    private fun launch(work: () -> ProfileState): Boolean {
+    private fun launch(onAccepted: () -> Unit = {}, work: () -> ProfileState): Boolean {
         if (disposed || busy) return false
         val operation = AtomicBoolean(false)
         token = operation
-        set(ProfileState(state.profiles, state.ready, busy = true))
+        set(ProfileState(state.profiles, state.ready, busy = true, cards = state.cards))
         try {
             worker.execute {
                 val next = if (operation.get()) null else try { work() }
@@ -80,7 +118,10 @@ internal class ProfileController(
                 dispatch {
                     if (token === operation) {
                         token = null
-                        if (!disposed && !operation.get() && next != null) set(next)
+                        if (!disposed && !operation.get() && next != null) {
+                            set(next)
+                            onAccepted()
+                        }
                     }
                 }
             }
