@@ -9,8 +9,9 @@ from verify_signed_release import (certificate_fingerprint, check_unsigned_check
 FINGERPRINT = "a" * 64
 
 
-def signature(digest=FINGERPRINT, count=1, dn="CN=Owner"):
-    return (f"Number of signers: {count}\nSigner #1 certificate DN: {dn}\n"
+def signature(digest=FINGERPRINT, count=1, dn="CN=Owner", v2=True):
+    return (f"Verified using v2 scheme (APK Signature Scheme v2): {str(v2).lower()}\n"
+            f"Number of signers: {count}\nSigner #1 certificate DN: {dn}\n"
             f"Signer #1 certificate SHA-256 digest: {digest}\n")
 
 
@@ -82,3 +83,8 @@ class FinalVerificationTest(unittest.TestCase):
                 (root / "SHA256SUMS.txt").write_text(invalid, encoding="ascii")
                 with self.assertRaises(ValueError):
                     check_unsigned_checksums(root)
+
+    def test_v1_only_or_missing_v2_proof_is_rejected(self):
+        for output in (signature(v2=False), signature().split("\n", 1)[1]):
+            with self.assertRaises(ValueError):
+                certificate_fingerprint(output)

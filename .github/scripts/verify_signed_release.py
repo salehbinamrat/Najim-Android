@@ -32,6 +32,9 @@ def digest_file(path):
 
 
 def certificate_fingerprint(text):
+    if not re.search(r"^Verified using v2 scheme \(APK Signature Scheme v2\): true\s*$",
+                     text, re.MULTILINE):
+        raise ValueError("APK Signature Scheme v2 is required for Android 7+")
     counts = re.findall(r"^Number of signers:\s*(\d+)\s*$", text, re.MULTILINE)
     fingerprints = re.findall(r"^Signer #(\d+) certificate SHA-256 digest:\s*([0-9a-fA-F]{64})\s*$",
                               text, re.MULTILINE)
@@ -143,12 +146,22 @@ def verify(unsigned_dir, signed_dir, report_dir, sdk, expected_certificate):
             (variant_report / "zipalign.txt").write_text(alignment, encoding="utf-8")
             if audit_apk(signed, manifest, variant_report / "inventory.json", abi, release=True):
                 raise ValueError("Signed APK audit failed: " + signed.name)
+            if digest_file(original) != hashes[original.name]:
+                raise ValueError("Unsigned candidate changed during verification")
             if digest_file(signed) != signed_hash:
                 raise ValueError("Signed APK changed during verification")
             records.append({"apk": signed.name, "sha256": signed_hash,
                             "unsigned_sha256": hashes[original.name],
                             "certificate_sha256": expected_certificate,
                             "abi": abi, "bytes": signed.stat().st_size})
+        # Recheck the complete set before publishing evidence, including files
+        # processed earlier. No concurrent changes are permitted during verification.
+        if check_unsigned_checksums(unsigned_dir) != hashes:
+            raise ValueError("Unsigned candidate set changed during verification")
+        require_apks(signed_dir, False)
+        for item in records:
+            if digest_file(signed_dir / item["apk"]) != item["sha256"]:
+                raise ValueError("Signed candidate set changed during verification")
         (temp / "SHA256SUMS.txt").write_text(
             "".join(f"{item['sha256']}  {item['apk']}\n" for item in records), encoding="ascii")
         (temp / "verification.json").write_text(json.dumps({

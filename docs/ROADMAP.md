@@ -97,3 +97,5 @@
 ## Phase 13C — signing integrity and field acceptance gate
 - Phase 13B verified 45964841827, 134 components/0 OSV matches, eight APKs passed applicable audits and hashes; merge af113744075b43dd68f0fc2b3ab43fb603908ca9. Four release candidates remain unsigned.
 - Add offline final signed-artifact verifier: exact four candidates, unsigned checksums, trusted owner certificate, signature, unchanged payload, ABI/manifest/alignment re-audit, signed checksums and complete-only report. Six CI-only tests; no keys or publication. Explicit field acceptance checklist remains entirely pending. Implementation of signing verification does not authorize release.
+
+- 13C follow-up: require verified signature scheme v2, revalidate all candidate hashes before report publication, add one negative unit test and an actual apksigner smoke test on four disposable test-signed copies. Test wrong certificate rejection. Temporary test key and signed copies never uploaded. Same PR 37, fresh CI required; no production release/signing.
