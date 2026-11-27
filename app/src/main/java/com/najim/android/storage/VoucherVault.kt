@@ -32,6 +32,28 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
         guarded { VaultResult.Ok(load().profiles) }
     }
 
+    fun catalog(): VaultResult<VaultCatalog> = synchronized(lock) {
+        guarded {
+            val document = load()
+            val ids = document.profiles.map { it.id }.toSet()
+            VaultResult.Ok(VaultCatalog(document.profiles,
+                document.records.filter { it.profileId in ids }.map(SavedVoucher::from)))
+        }
+    }
+
+    /** Read only the explicitly requested record, checking its persisted profile. */
+    fun readSelected(profile: NetworkProfile, id: UUID): VaultResult<VaultRecord?> = synchronized(lock) {
+        guarded {
+            val document = load()
+            val stored = document.profiles.singleOrNull { it.id == profile.id }
+            if (stored == null || stored.name != profile.name || stored.gateway != profile.gateway)
+                return@guarded VaultResult.Unavailable
+            VaultResult.Ok(document.records.singleOrNull {
+                it.id == id && it.profileId == profile.id && it.gateway == profile.gateway
+            })
+        }
+    }
+
     fun createProfile(profile: NetworkProfile): VaultResult<Unit> = synchronized(lock) {
         guarded {
             val old = load()

@@ -127,4 +127,14 @@
     <string name="profile_invalid">اسم الملف غير صالح.</string>
     <string name="profile_save_card">حفظ رقم الكرت وكلمة المرور إن وجدت بعد مطابقة الجلسة لهذه المحاولة فقط</string>
     <string name="profile_save_legacy">أوافق على الحفظ بناء على نتيجة HTTP التي لا تثبت هوية البوابة</string>
+    <string name="saved_title">الكروت المحفوظة</string>
+    <string name="saved_empty">لا توجد كروت محفوظة لهذا الملف.</string>
+    <string name="saved_index">الكرت %1$d</string>
+    <string name="saved_use">استخدام</string>
+    <string name="saved_delete">حذف</string>
+    <string name="saved_use_confirm">تحميل بيانات الكرت %2$s من ملف %1$s إلى حقول الدخول المخفية؟ لن يتم إرسالها إلى الراوتر تلقائيا. تأكد من الشبكة قبل تسجيل الدخول.</string>
+    <string name="saved_delete_confirm">حذف الكرت %2$s من ملف %1$s على هذا الهاتف؟ لا يلغي هذا الكرت لدى الشبكة.</string>
+    <string name="saved_deleted">تم حذف الكرت من التخزين المحلي.</string>
+    <string name="saved_loaded">تم تعبئة حقول الدخول. راجع الشبكة وطريقة المصادقة ثم سجل الدخول يدويا.</string>
+    <string name="saved_not_found">لم يعد الكرت موجودا. تم تحديث القائمة.</string>
 </resources>

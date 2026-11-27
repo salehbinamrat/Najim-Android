@@ -26,25 +26,29 @@ import com.najim.android.network.DiscoveryState
 import com.najim.android.storage.ProfileState
 import com.najim.android.storage.NetworkProfile
 import com.najim.android.storage.SaveChoice
+import com.najim.android.storage.SavedVoucher
+import com.najim.android.storage.VaultRecord
 
 @Composable
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
+    loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
+    deleteCard: (NetworkProfile, SavedVoucher) -> Boolean,
     sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
     logoutSession: (SessionViewState.Snapshot, Boolean) -> Boolean,
     galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean, SaveChoice?) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
-    var username by remember { mutableStateOf("") }
-    var scanMode by remember { mutableStateOf(ScanMode.OCR) }
-    var password by remember { mutableStateOf("") }
-    var usePassword by remember { mutableStateOf(false) }
-    var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
-    var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var selectedProfile by remember(network, profileState.profiles) { mutableStateOf<NetworkProfile?>(null) }
+    var username by remember(network, selectedProfile) { mutableStateOf("") }
+    var scanMode by remember { mutableStateOf(ScanMode.OCR) }
+    var password by remember(network, selectedProfile) { mutableStateOf("") }
+    var usePassword by remember(network, selectedProfile) { mutableStateOf(false) }
+    var protocol by remember(network, selectedProfile) { mutableStateOf(LoginProtocol.HTTPS_PAP) }
+    var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     var saveApproved by remember(network, selectedProfile, username, password, protocol, usePassword) { mutableStateOf(false) }
     var legacySaveApproved by remember(network, selectedProfile, username, password, protocol, usePassword, saveApproved) { mutableStateOf(false) }
     val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
@@ -63,7 +67,37 @@ internal fun FoundationScreen(
             SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
                 refresh = refreshSession, clear = clearSession, logout = logoutSession)
             ProfilePicker(network, profileState, selectedProfile, enabled = !busy && !galleryActive,
-                onSelect = { selectedProfile = it }, refresh = refreshProfiles, create = createProfile)
+                onSelect = {
+                    if (selectedProfile !== it) {
+                        username = ""
+                        password = ""
+                        usePassword = false
+                        consent = false
+                    }
+                    selectedProfile = it
+                }, refresh = refreshProfiles, create = createProfile)
+            val chosenProfile = selectedProfile
+            if (chosenProfile != null) {
+                SavedVoucherCard(chosenProfile, profileState.cards.filter { it.profileId == chosenProfile.id },
+                    enabled = !busy && !galleryActive,
+                    load = { card -> loadCard(chosenProfile, card) { record ->
+                        username = record.username
+                        password = record.password.orEmpty()
+                        usePassword = record.password != null
+                        protocol = record.protocol
+                        consent = false
+                        saveApproved = false
+                        legacySaveApproved = false
+                    } }, delete = { card ->
+                        username = ""
+                        password = ""
+                        usePassword = false
+                        consent = false
+                        saveApproved = false
+                        legacySaveApproved = false
+                        deleteCard(chosenProfile, card)
+                    })
+            }
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
