@@ -20,7 +20,7 @@ internal sealed interface PortalPage {
 /** Offline HTML parsing only. Never executes scripts, fetches resources, or follows URLs. */
 internal object PortalParser {
     private val chapExpression = Regex(
-        """hexMD5\s*\(\s*'((?:\\[0-7]{3})+)'\s*\+\s*document\.login\.password\.value\s*\+\s*'((?:\\[0-7]{3})+)'\s*\)"""
+        """hexMD5\s*\(\s*'((?:\\[0-7]{3}){1})'\s*\+\s*document\.login\.password\.value\s*\+\s*'((?:\\[0-7]{3}){16})'\s*\)"""
     )
     private val octalByte = Regex("""\\([0-7]{3})""")
     private val welcome = Regex("""Welcome,?\s+(.+)!""")
@@ -80,7 +80,10 @@ internal object PortalParser {
             login.attr("onsubmit").trim().trimEnd(';') != "return doLogin()" ||
             scripts.contains("eval(")) return PortalPage.Unknown
 
-        val match = chapExpression.findAll(scripts).toList().singleOrNull() ?: return PortalPage.Unknown
+        // Exactly one CHAP expression; fixed-size octal groups avoid unbounded
+        // recursive regex repetition on malformed portal input.
+        if (Regex("""hexMD5\s*\(""").findAll(scripts).take(2).count() != 1) return PortalPage.Unknown
+        val match = chapExpression.find(scripts) ?: return PortalPage.Unknown
         val id = decodeOctal(match.groupValues[1], 1) ?: return PortalPage.Unknown
         val challenge = decodeOctal(match.groupValues[2], 16) ?: return PortalPage.Unknown
         return PortalPage.ChapForm(ChapChallenge(id.single().toInt() and 255, challenge))
