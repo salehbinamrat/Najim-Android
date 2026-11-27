@@ -25,7 +25,9 @@ internal class GatewayTransport(
     private val stillSelected: (DiscoveryState.Ready) -> Boolean,
     private val openBound: (DiscoveryState.Ready, URI) -> HttpURLConnection?,
     private val protocol: LoginProtocol = LoginProtocol.HTTPS_PAP,
-    private val allowInsecureHttp: Boolean = false
+    private val allowInsecureHttp: Boolean = false,
+    private val cancelled: () -> Boolean = { false },
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L }
 ) {
     fun submit(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
         if (request.networkId != selected.networkId || request.protocol != protocol ||
@@ -57,10 +59,13 @@ internal class GatewayTransport(
     private fun exchange(selected: DiscoveryState.Ready, endpoint: URI, formBody: String?): ExchangeResult {
         var connection: HttpURLConnection? = null
         val bytes = formBody?.toByteArray(Charsets.UTF_8)
+        val started = nowMillis()
         try {
+            checkBudget(started)
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
             val target = openBound(selected, endpoint) ?: return ExchangeResult.NetworkChanged
             connection = target
+            checkBudget(started)
             target.instanceFollowRedirects = false
             target.useCaches = false
             target.connectTimeout = 5000
@@ -76,8 +81,14 @@ internal class GatewayTransport(
 
             // Revalidate immediately before any network I/O.
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
-            if (bytes != null) target.outputStream.use { output -> output.write(bytes) }
+            checkBudget(started)
+            if (bytes != null) target.outputStream.use { output ->
+                checkBudget(started)
+                output.write(bytes)
+            }
+            checkBudget(started)
             val status = target.responseCode
+            checkBudget(started)
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
 
             // Redirects are not followed, and their destinations are never used as login targets.
@@ -85,11 +96,16 @@ internal class GatewayTransport(
                 ByteArray(0)
             } else {
                 val stream = if (status >= 400) target.errorStream else target.inputStream
-                val limited = stream?.use { readBounded(it) } ?: if (stream == null) ByteArray(0) else null
+                val limited = stream?.use { readBounded(it, started) } ?: if (stream == null) ByteArray(0) else null
                 limited ?: return ExchangeResult.ResponseTooLarge
             }
+            checkBudget(started)
             if (!stillSelected(selected)) return ExchangeResult.NetworkChanged
-            return ExchangeResult.Received(status, body, target.getHeaderField("Location"))
+            val location = target.getHeaderField("Location")
+            checkBudget(started)
+            return ExchangeResult.Received(status, body, location)
+        } catch (_: ExchangeCancelled) {
+            return ExchangeResult.NetworkChanged
         } catch (_: IOException) {
             return ExchangeResult.TransportFailure
         } catch (_: SecurityException) {
@@ -100,20 +116,34 @@ internal class GatewayTransport(
         }
     }
 
-    private fun readBounded(stream: InputStream): ByteArray? {
+    private class ExchangeCancelled : IOException()
+
+    // Cooperative total budget, checked between blocking operations. Socket timeouts
+    // still apply; this cannot forcibly interrupt a blocked platform call.
+    private fun checkBudget(started: Long) {
+        if (cancelled()) throw ExchangeCancelled()
+        if (nowMillis() - started >= EXCHANGE_BUDGET_MS) throw IOException("Gateway exchange budget exceeded")
+    }
+
+    private fun readBounded(stream: InputStream, started: Long): ByteArray? {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(4096)
-        while (true) {
-            val count = stream.read(buffer)
-            if (count == -1) return output.toByteArray()
-            if (count == 0) throw IOException("Empty stream read")
-            if (count > MAX_RESPONSE_BYTES - output.size()) return null
-            output.write(buffer, 0, count)
-        }
+        try {
+            while (true) {
+                checkBudget(started)
+                val count = stream.read(buffer)
+                checkBudget(started)
+                if (count == -1) return output.toByteArray()
+                if (count == 0) throw IOException("Empty stream read")
+                if (count > MAX_RESPONSE_BYTES - output.size()) return null
+                output.write(buffer, 0, count)
+            }
+        } finally { buffer.fill(0) }
     }
 
     companion object {
         const val MAX_RESPONSE_BYTES = 64 * 1024
+        const val EXCHANGE_BUDGET_MS = 15_000L
     }
 }
 

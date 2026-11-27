@@ -17,7 +17,9 @@ class GatewayTransportTest {
     private class FakeConnection(
         private val code: Int = 200,
         private val response: ByteArray = "portal".toByteArray(),
-        private val failWrite: Boolean = false
+        private val failWrite: Boolean = false,
+        private val customStream: ByteArrayInputStream? = null,
+        private val onResponse: () -> Unit = {}
     ) : HttpURLConnection(URL("https://10.0.3.1/login")) {
         val sent = ByteArrayOutputStream()
         var reads = 0
@@ -25,11 +27,11 @@ class GatewayTransportTest {
         override fun connect() = Unit
         override fun disconnect() { closed = true }
         override fun usingProxy() = false
-        override fun getResponseCode() = code
+        override fun getResponseCode(): Int { onResponse(); return code }
         override fun getOutputStream() = if (failWrite) throw IOException("test") else sent
         override fun getInputStream(): ByteArrayInputStream {
             reads++
-            return ByteArrayInputStream(response)
+            return customStream ?: ByteArrayInputStream(response)
         }
         override fun getErrorStream() = ByteArrayInputStream(response)
     }
@@ -213,5 +215,69 @@ class GatewayTransportTest {
     @Test fun logoutHttpWithoutConsentIsRejectedBeforeOpen() {
         val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, LoginProtocol.HTTP_PAP)
         assertEquals(ExchangeResult.UnsupportedEndpoint, transport.logout(wifi))
+    }
+    @Test fun expiredBudgetBeforeOpeningNeverSends() {
+        var calls = 0
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") },
+            nowMillis = { if (calls++ == 0) 0L else GatewayTransport.EXCHANGE_BUDGET_MS })
+        assertEquals(ExchangeResult.TransportFailure, transport.submit(wifi, request))
+    }
+
+    @Test fun slowDripBodyCannotExtendTotalBudget() {
+        var clock = 0L
+        var reads = 0
+        val stream = object : ByteArrayInputStream(ByteArray(30)) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                reads++
+                clock += 1000
+                return super.read(b, off, minOf(len, 1))
+            }
+        }
+        val connection = FakeConnection(customStream = stream)
+        val transport = GatewayTransport({ true }, { _, _ -> connection }, nowMillis = { clock })
+        assertEquals(ExchangeResult.TransportFailure, transport.read(wifi, GatewayPage.STATUS))
+        assertEquals(15, reads)
+        assertTrue(connection.closed)
+    }
+
+    @Test fun cancellationDuringResponseDiscardsPartialBody() {
+        var cancelled = false
+        var reads = 0
+        val stream = object : ByteArrayInputStream(byteArrayOf(1, 2, 3)) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                reads++
+                cancelled = true
+                return super.read(b, off, len)
+            }
+        }
+        val connection = FakeConnection(customStream = stream)
+        val transport = GatewayTransport({ true }, { _, _ -> connection }, cancelled = { cancelled })
+        assertEquals(ExchangeResult.NetworkChanged, transport.read(wifi, GatewayPage.STATUS))
+        assertEquals(1, reads)
+        assertTrue(connection.closed)
+    }
+
+    @Test fun expiredPostResponseDoesNotRetryOrConfirm() {
+        var clock = 0L
+        var opens = 0
+        val connection = FakeConnection(onResponse = { clock = GatewayTransport.EXCHANGE_BUDGET_MS })
+        val transport = GatewayTransport({ true }, { _, _ -> opens++; connection }, nowMillis = { clock })
+        assertEquals(ExchangeResult.TransportFailure, transport.submit(wifi, request))
+        assertEquals(1, opens)
+        assertTrue(connection.sent.size() > 0)
+        assertTrue(connection.closed)
+    }
+
+    @Test fun cancellationBeforeOpeningDoesNotSend() {
+        val transport = GatewayTransport({ true }, { _, _ -> error("must not open") }, cancelled = { true })
+        assertEquals(ExchangeResult.NetworkChanged, transport.submit(wifi, request))
+    }
+
+    @Test fun timelyResponseWithinBudgetStillSucceeds() {
+        var clock = 0L
+        val connection = FakeConnection(onResponse = { clock = GatewayTransport.EXCHANGE_BUDGET_MS - 1 })
+        val transport = GatewayTransport({ true }, { _, _ -> connection }, nowMillis = { clock })
+        assertTrue(transport.read(wifi, GatewayPage.STATUS) is ExchangeResult.Received)
+        assertTrue(connection.closed)
     }
 }
