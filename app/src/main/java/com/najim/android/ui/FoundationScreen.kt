@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.najim.android.R
+import com.najim.android.ocr.GalleryState
 import com.najim.android.auth.GatewayLoginResult
 import com.najim.android.auth.LoginAttemptState
 import com.najim.android.auth.LoginProtocol
@@ -25,6 +26,7 @@ import com.najim.android.network.DiscoveryState
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
+    galleryState: GalleryState, chooseImage: () -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
 ) {
     // No rememberSaveable or persistent secrets. Reset consent when inputs, mode or network change.
@@ -34,6 +36,7 @@ internal fun FoundationScreen(
     var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
     val busy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
+    val galleryActive = galleryState != GalleryState.Idle
     val validation = VoucherInput.validate(username)
     val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
         (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
@@ -61,11 +64,18 @@ internal fun FoundationScreen(
                     null -> R.string.error_empty
                 }))
             }
-            VoucherScanner(lifecycleOwner, enabled = !busy, onConfirmed = { code ->
+            VoucherScanner(lifecycleOwner, enabled = !busy && !galleryActive, onConfirmed = { code ->
                 username = code
                 password = ""
                 consent = false
             })
+            GalleryScanner(galleryState, enabled = !busy, choose = chooseImage, confirm = {
+                confirmImage()?.let { code ->
+                    username = code
+                    password = ""
+                    consent = false
+                }
+            }, cancel = cancelImage)
             Row {
                 Checkbox(checked = usePassword, enabled = !busy, onCheckedChange = {
                     usePassword = it
@@ -108,7 +118,7 @@ internal fun FoundationScreen(
                     username = ""
                     password = ""
                 }
-            }, modifier = Modifier.fillMaxWidth(), enabled = !busy && network is DiscoveryState.Ready &&
+            }, modifier = Modifier.fillMaxWidth(), enabled = !busy && !galleryActive && network is DiscoveryState.Ready &&
                 validation.error == null && validPassword && (!protocol.requiresConsent || consent)) {
                 Text(stringResource(R.string.login_submit))
             }

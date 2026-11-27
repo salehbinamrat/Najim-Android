@@ -43,6 +43,15 @@ internal fun VoucherScanner(owner: LifecycleOwner, enabled: Boolean, onConfirmed
         open = granted && enabled
     }
 
+    LaunchedEffect(enabled) {
+        if (!enabled) {
+            open = false
+            candidate = null
+            reading = null
+            failed = false
+        }
+    }
+
     if (!open || !enabled) {
         OutlinedButton(onClick = {
             denied = false
