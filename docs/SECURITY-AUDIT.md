@@ -30,3 +30,6 @@ Phase 13B verified (45964841827): 134 Maven components, zero OSV matches; eight 
 
 
 13C verified in 45967205345: 134 Maven components / 0 OSV matches, both jobs passed, eight APK audits and hashes and actual four-variant disposable v2 signer smoke test succeeded; mismatched signer rejected. 13D separates artifact uploads without weakening gates and adds a launcher icon presence check to packaged manifest audit. No production signing or field acceptance yet.
+
+
+Phase 14A: RECORD_AUDIO is intentionally authorized for user-requested voice input, microphone hardware must remain optional; no background recording service or cloud recognizer fallback. Android's on-device service and installed offline TTS are external components; app cannot independently verify their internal behavior. Start only on explicit tap with runtime permission, cancel/destroy on pause/disposal/timeout; no raw audio persistence, passwords or automatic login. Read-aloud only typed session metrics under existing audio/speech opt-in, no identifier. New audit rule checks optional microphone feature, all other denylist protections retained. Actual device testing and OSV verification pending.

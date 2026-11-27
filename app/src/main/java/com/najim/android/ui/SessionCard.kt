@@ -19,9 +19,11 @@ import com.najim.android.network.DiscoveryState
 @Composable
 internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                          enabled: Boolean, refresh: (Boolean, Boolean) -> Boolean,
-                         clear: () -> Unit, logout: (SessionViewState.Snapshot, Boolean) -> Boolean) {
+                         clear: () -> Unit, logout: (SessionViewState.Snapshot, Boolean) -> Boolean,
+                         readAloud: (SessionViewState.Snapshot) -> Boolean) {
     var confirmHttp by remember(network, state) { mutableStateOf(false) }
     var confirmLogout by remember(network, state) { mutableStateOf(false) }
+    var readFailed by remember(network, state) { mutableStateOf(false) }
     val busy = state == SessionViewState.Loading || state == SessionViewState.Cancelling || state == SessionViewState.LoggingOut
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -55,6 +57,12 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                     if (state.legacy) Text(stringResource(R.string.session_legacy_warning),
                         color = MaterialTheme.colorScheme.error)
                     if (state.status is SessionStatus.Active) {
+                        OutlinedButton(onClick = { readFailed = !readAloud(state) },
+                            enabled = enabled && !busy, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.speech_read_metrics))
+                        }
+                        if (readFailed) Text(stringResource(R.string.speech_read_unavailable),
+                            style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(onClick = { confirmLogout = true }, enabled = enabled && network is DiscoveryState.Ready) {
                             Text(stringResource(R.string.logout_action), color = MaterialTheme.colorScheme.error)
                         }

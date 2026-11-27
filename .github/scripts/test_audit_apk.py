@@ -12,6 +12,7 @@ def manifest(extra="", components="", backup="false"):
     permissions = "".join(f'<uses-permission android:name="{p}"/>' for p in REQUIRED_PERMISSIONS)
     return ET.fromstring('<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
                          'package="com.najim.android">' + permissions + extra +
+                         '<uses-feature android:name="android.hardware.microphone" android:required="false"/>' +
                          f'<application android:allowBackup="{backup}" android:icon="@mipmap/ic_launcher" '
                          'android:roundIcon="@mipmap/ic_launcher">'
                          '<activity android:name=".MainActivity" android:exported="true"/>'
@@ -104,3 +105,10 @@ class AuditTest(unittest.TestCase):
         app.set(namespace + "roundIcon", "@null")
         _, errors = inspect_manifest(root)
         self.assertEqual(["Missing launcher icon", "Missing launcher roundIcon"], errors)
+
+    def test_microphone_feature_must_remain_optional(self):
+        root = manifest()
+        node = root.find("uses-feature")
+        node.set("{http://schemas.android.com/apk/res/android}required", "true")
+        _, errors = inspect_manifest(root)
+        self.assertEqual(["Microphone must be an optional feature"], errors)

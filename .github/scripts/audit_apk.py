@@ -12,10 +12,10 @@ ABI = {"armeabi-v7a": (1, 40), "arm64-v8a": (2, 183),
        "x86": (1, 3), "x86_64": (2, 62)}
 REQUIRED = {"armeabi-v7a", "arm64-v8a"}
 REQUIRED_PERMISSIONS = {"android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-                        "android.permission.CAMERA"}
+                        "android.permission.CAMERA", "android.permission.RECORD_AUDIO"}
 DENIED_PERMISSIONS = {"android.permission.READ_CONTACTS", "android.permission.WRITE_CONTACTS",
     "android.permission.READ_SMS", "android.permission.SEND_SMS", "android.permission.RECEIVE_SMS",
-    "android.permission.RECORD_AUDIO", "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
     "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION",
     "android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE",
     "android.permission.MANAGE_EXTERNAL_STORAGE", "android.permission.REQUEST_INSTALL_PACKAGES",
@@ -33,6 +33,10 @@ def inspect_manifest(root, release=False):
         errors.append("Required app permissions missing")
     for permission in sorted(DENIED_PERMISSIONS.intersection(permissions)):
         errors.append("Unexpected sensitive permission: " + permission)
+    microphones = [node for node in root.findall("uses-feature")
+                   if node.get(A + "name") == "android.hardware.microphone"]
+    if len(microphones) != 1 or microphones[0].get(A + "required") != "false":
+        errors.append("Microphone must be an optional feature")
     if root.get("package") != "com.najim.android":
         errors.append("Unexpected application ID")
     app = root.find("application")
