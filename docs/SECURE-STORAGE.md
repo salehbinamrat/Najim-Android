@@ -16,5 +16,5 @@
 ## Phase 07B2 — explicit profile UI and attempt-bound save
 - Manual profile creation for the currently selected gateway, no automatic selection even when only one profile matches. Selection resets on network or catalog change. Names are user labels, not authenticated network identities.
 - One-attempt opt-in to save original normalized credentials after the actual LoginAttemptController result; separate opt-in for legacy HTTP evidence. Reject wrong gateway, missing approval, failed/mismatched results, cancelled or disposed attempts. The vault rechecks the persisted profile. No automatic login.
-- Serial storage worker; no disk or key generation on the Compose thread. On Activity stop, clear catalog state and cancel queued work; a write that has already begun may finish atomically. Refresh catalog on start. Storage failure does not alter authentication result.
-- 8 additional JVM tests for actual attempt-bound save and profile controller; device tests and saved-card UI/reuse/deletion remain 07C and field acceptance.
+- Serial storage worker; no disk or key generation on the Compose thread. On network change or Activity stop, clear catalog state and cancel queued work; a write that has already begun may finish atomically. Refresh catalog on start. Storage failure does not alter authentication result.
+- 9 additional JVM tests for actual attempt-bound save and profile controller; device tests and saved-card UI/reuse/deletion remain 07C and field acceptance.

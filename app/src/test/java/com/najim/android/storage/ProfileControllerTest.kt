@@ -65,4 +65,19 @@ class ProfileControllerTest {
         assertEquals(ProfileNotice.SAVED, f.state.notice)
         assertEquals("0012", (f.vault.list(profile.id) as VaultResult.Ok).value.single().username)
     }
+    @Test fun clearCancelsQueuedSaveBeforeWrite() {
+        val f = Fixture()
+        f.controller.refresh()
+        f.finish()
+        f.controller.create(wifi, "Network")
+        f.finish()
+        val profile = f.state.profiles.single()
+        val save = requireNotNull(ConfirmedVoucherSave.authorize(profile, wifi, wifi, "0012", null,
+            LoginProtocol.HTTPS_PAP, GatewayLoginResult.MATCHING_SESSION, true))
+        assertTrue(f.controller.save(save))
+        f.controller.clear()
+        f.finish()
+        assertTrue((f.vault.list(profile.id) as VaultResult.Ok).value.isEmpty())
+        assertFalse(f.state.ready)
+    }
 }

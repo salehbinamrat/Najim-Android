@@ -67,6 +67,10 @@ class MainActivity : ComponentActivity() {
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
             session.networkChanged(it)
+            if (discoveryState.value != it) {
+                profiles.clear()
+                profiles.refresh()
+            }
             discoveryState.value = it
         }
         enableEdgeToEdge()
