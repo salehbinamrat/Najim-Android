@@ -20,7 +20,7 @@ internal sealed interface RecognitionResult {
 }
 
 /**
- * Bundled on-device OCR or QR recognition. Owner calls and completion use the main thread;
+ * On-device OCR (bundled in Full, Play services model in Lite) or bundled QR recognition. Owner calls and completion use the main thread;
  * bounded candidate extraction runs on a separate serial worker.
  * Caller owns image lifetime and must release it in onFinished, even after close().
  * No camera permission, disk persistence, remote request or auto-login here.
@@ -28,11 +28,19 @@ internal sealed interface RecognitionResult {
 internal class LocalVoucherRecognizer(
     mode: ScanMode, private val bounds: ScanBounds = ScanBounds()
 ) : AutoCloseable {
-    private val textReader = if (mode == ScanMode.OCR)
-        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) else null
-    private val qrReader = if (mode == ScanMode.QR) BarcodeScanning.getClient(
-        BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-    ) else null
+    // Lite devices may lack a usable Play services implementation. Keep manual
+    // entry/QR usable and report recognition failure, not an Activity crash.
+    private val textReader = if (mode == ScanMode.OCR) {
+        try { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+        catch (_: RuntimeException) { null }
+    } else null
+    private val qrReader = if (mode == ScanMode.QR) {
+        try {
+            BarcodeScanning.getClient(
+                BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+            )
+        } catch (_: RuntimeException) { null }
+    } else null
 
     private fun process(image: InputImage): Task<ScanSuggestion> {
         val text = textReader

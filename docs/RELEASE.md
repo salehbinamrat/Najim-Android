@@ -6,3 +6,13 @@ Both parallel CI jobs execute unit tests and lint for all four debug variants; C
 
 Remaining: license decision, signing through owner-controlled key/secret process, release build and audit, device installation and 16KB runtime validation, full/lite model readiness and size comparison, RouterOS 6/7 and RADIUS field tests, performance and TalkBack. Do not claim production readiness without these.
 References: https://developers.google.com/ml-kit/vision/text-recognition/v2/android and https://developer.android.com/build/build-variants.
+
+
+## Phase 13A verified (2026-11-27)
+Run 45963895362 passed both jobs, OSV 134 components / 0 matches, 8 audit tests, Full 5 native libraries per ABI and Lite 4, 4 permissions and 0 audit findings per APK, all four checksums verified. Merged d7e7e3e9530dc7798079f14c9e94fbbeeca36a8e. Debug artifact: https://github.com/salehbinamrat/Najim-Android/actions/runs/45963895362/artifacts/15181273821.
+
+## Phase 13B — unsigned release candidates
+Both parallel jobs now verify debug AND release unit tests and lint for all four variants. Dependency inventory includes release test classpaths. After tests, Release Preflight builds the four debug APKs and four unsigned release APKs, checks exact ABI/manifest/16KB alignment and checksums separately. Release audit rejects debuggable, testOnly and SDK drift. Unsigned APKs are not installable and have not passed signature verification. Explicitly no debug signing of production candidates, no automatic publishing, no R8 policy change. R8 optimization remains disabled until runtime/field validation. 
+
+### Owner-controlled signing (not executed)
+Keep a backed-up release keystore offline; never commit passwords or keys, never send them in chat. Owner must select the signing identity and verify expected certificate SHA-256 via an independent trusted record. Sign each previously verified unsigned candidate with Android SDK apksigner (prompt for passwords; do not pass literal passwords on command line). Verify signature, certificate fingerprint, alignment and packaged manifest again after signing; generate fresh SHA-256 for the signed files. Test upgrades using the same certificate and application ID. Do not distribute signed APKs until physical device, RouterOS and RADIUS acceptance and distribution license are confirmed. Debug CI certificates may differ across runs; debug installations may require uninstall (which clears local data) before installing production. Back up any needed test vouchers manually before uninstalling. No real key or password generated, requested or uploaded.

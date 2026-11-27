@@ -45,7 +45,7 @@ jobs:
           name: verification-reports-${{ github.job }}
           path: |
             app/build/reports/lint-results-*.*
-            app/build/test-results/test*DebugUnitTest/*.xml
+            app/build/test-results/test*UnitTest/*.xml
             app/build/reports/dependency-audit/*
           if-no-files-found: warn
   release:
@@ -82,14 +82,18 @@ jobs:
           name: verification-reports-${{ github.job }}
           path: |
             app/build/reports/lint-results-*.*
-            app/build/test-results/test*DebugUnitTest/*.xml
+            app/build/test-results/test*UnitTest/*.xml
           if-no-files-found: warn
       - name: Test APK audit rules
         run: python3 -m unittest discover -s .github/scripts -p 'test_audit_apk.py'
       - name: Assemble four debug APKs after verification
         run: bash .github/scripts/gradle-ci.sh :app:assembleFullArm32Debug :app:assembleFullArm64Debug :app:assembleLiteArm32Debug :app:assembleLiteArm64Debug
-      - name: Inspect all four packaged APKs
-        run: bash .github/scripts/inspect-variants.sh
+      - name: Inspect all four debug APKs
+        run: bash .github/scripts/inspect-variants.sh debug
+      - name: Assemble four unsigned release candidates after verification
+        run: bash .github/scripts/gradle-ci.sh :app:assembleFullArm32Release :app:assembleFullArm64Release :app:assembleLiteArm32Release :app:assembleLiteArm64Release
+      - name: Inspect unsigned release candidates
+        run: bash .github/scripts/inspect-variants.sh release
       - name: Upload APK inspection diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -102,4 +106,10 @@ jobs:
         with:
           name: debug-preflight-four-variants
           path: app/build/verified-apks/
+          if-no-files-found: error
+      - name: Upload unsigned release candidates (not installable)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-release-candidates
+          path: app/build/unsigned-release-candidates/
           if-no-files-found: error

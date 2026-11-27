@@ -25,7 +25,7 @@ DENIED_PERMISSIONS = {"android.permission.READ_CONTACTS", "android.permission.WR
 COMPONENTS = {"activity", "activity-alias", "service", "receiver", "provider"}
 
 
-def inspect_manifest(root):
+def inspect_manifest(root, release=False):
     errors = []
     permissions = sorted({node.get(A + "name", "") for node in root
                           if node.tag.startswith("uses-permission")})
@@ -40,6 +40,13 @@ def inspect_manifest(root):
         raise ValueError("Missing application")
     if app.get(A + "allowBackup") != "false":
         errors.append("Backup must be disabled")
+    if release:
+        for attribute in ("debuggable", "testOnly"):
+            if app.get(A + attribute, "false") != "false":
+                errors.append("Release must not enable " + attribute)
+        sdk = root.find("uses-sdk")
+        if sdk is None or sdk.get(A + "minSdkVersion") != "24" or sdk.get(A + "targetSdkVersion") != "35":
+            errors.append("Unexpected release SDK levels")
     components = []
     for item in app:
         if item.tag not in COMPONENTS:
@@ -64,7 +71,9 @@ def inspect_manifest(root):
         errors.append("Unreviewed exported component: " + name)
     return {"permissions": permissions, "components": components,
             "allowBackup": app.get(A + "allowBackup"),
-            "usesCleartextTraffic": app.get(A + "usesCleartextTraffic")}, errors
+            "usesCleartextTraffic": app.get(A + "usesCleartextTraffic"),
+            "debuggable": app.get(A + "debuggable", "false"),
+            "testOnly": app.get(A + "testOnly", "false")}, errors
 
 
 def elf_info(data, abi):
@@ -132,8 +141,8 @@ def inspect_native(apk, required=REQUIRED, exact=False):
     return inventory, errors
 
 
-def main(apk, manifest, report, expected_abi=None):
-    manifest_info, errors = inspect_manifest(ET.parse(manifest).getroot())
+def main(apk, manifest, report, expected_abi=None, release=False):
+    manifest_info, errors = inspect_manifest(ET.parse(manifest).getroot(), release=release)
     libraries, native_errors = inspect_native(apk, {expected_abi} if expected_abi else REQUIRED,
                                               exact=expected_abi is not None)
     errors.extend(native_errors)
@@ -154,5 +163,6 @@ if __name__ == "__main__":
     parser.add_argument("manifest", type=pathlib.Path)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--abi", choices=sorted(REQUIRED))
+    parser.add_argument("--release", action="store_true")
     args = parser.parse_args()
-    sys.exit(main(args.apk, args.manifest, args.report, args.abi))
+    sys.exit(main(args.apk, args.manifest, args.report, args.abi, args.release))

@@ -75,3 +75,22 @@ class AuditTest(unittest.TestCase):
                 archive.writestr("lib/arm64-v8a/libsample.so", elf64(4096))
             _, errors = inspect_native(apk, {"arm64-v8a"}, exact=True)
             self.assertTrue(any("not 16KB aligned" in e for e in errors))
+
+    def test_release_rejects_debuggable_and_test_only(self):
+        root = manifest()
+        root.insert(0, ET.Element("uses-sdk", {"{http://schemas.android.com/apk/res/android}minSdkVersion": "24",
+                                              "{http://schemas.android.com/apk/res/android}targetSdkVersion": "35"}))
+        app = root.find("application")
+        for attr in ("debuggable", "testOnly"):
+            app.set("{http://schemas.android.com/apk/res/android}" + attr, "true")
+        _, errors = inspect_manifest(root, release=True)
+        self.assertEqual(2, len(errors))
+
+    def test_release_requires_expected_sdk_and_accepts_non_debug(self):
+        root = manifest()
+        _, errors = inspect_manifest(root, release=True)
+        self.assertEqual(["Unexpected release SDK levels"], errors)
+        root.insert(0, ET.Element("uses-sdk", {"{http://schemas.android.com/apk/res/android}minSdkVersion": "24",
+                                              "{http://schemas.android.com/apk/res/android}targetSdkVersion": "35"}))
+        _, errors = inspect_manifest(root, release=True)
+        self.assertEqual([], errors)
