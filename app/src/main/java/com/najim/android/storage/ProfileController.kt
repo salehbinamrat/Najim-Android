@@ -6,7 +6,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal enum class ProfileNotice { NONE, CREATED, SAVED, FULL, UNAVAILABLE, INVALID, DELETED, LOADED, NOT_FOUND }
+internal enum class ProfileNotice { NONE, CREATED, SAVED, FULL, UNAVAILABLE, INVALID, DELETED, LOADED, NOT_FOUND, RETENTION_CHANGED }
 
 internal class ProfileState(
     val profiles: List<NetworkProfile> = emptyList(),
@@ -51,11 +51,19 @@ internal class ProfileController(
 
     fun save(save: ConfirmedVoucherSave): Boolean {
         if (disposed || busy || !state.ready || state.profiles.none {
-                it.id == save.record.profileId && it.gateway == save.record.gateway && it.name == save.profileName
+                it.id == save.record.profileId && it.gateway == save.record.gateway && it.name == save.profileName &&
+                    it.retention == save.retention
             }) return false
         return launch {
             val result = vault.saveConfirmed(save)
             readCatalog(notice(result, ProfileNotice.SAVED))
+        }
+    }
+
+    fun setRetention(network: DiscoveryState, profile: NetworkProfile, mode: RetentionMode): Boolean {
+        if (!accepts(profile) || network !is DiscoveryState.Ready || network.gateway != profile.gateway) return false
+        return launch {
+            readCatalog(notice(vault.setRetention(profile, mode), ProfileNotice.RETENTION_CHANGED))
         }
     }
 

@@ -29,12 +29,14 @@ import com.najim.android.storage.NetworkProfile
 import com.najim.android.storage.SaveChoice
 import com.najim.android.storage.SavedVoucher
 import com.najim.android.storage.VaultRecord
+import com.najim.android.storage.RetentionMode
 
 @Composable
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
+    setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
     deleteCard: (NetworkProfile, SavedVoucher) -> Boolean,
     sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
@@ -78,7 +80,7 @@ internal fun FoundationScreen(
                         consent = false
                     }
                     selectedProfile = it
-                }, refresh = refreshProfiles, create = createProfile)
+                }, refresh = refreshProfiles, create = createProfile, setRetention = setRetention)
             val chosenProfile = selectedProfile
             if (chosenProfile != null) {
                 SavedVoucherCard(chosenProfile, profileState.cards.filter { it.profileId == chosenProfile.id },

@@ -68,19 +68,33 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
         }
     }
 
+    fun setRetention(profile: NetworkProfile, mode: RetentionMode): VaultResult<Unit> = synchronized(lock) {
+        guarded {
+            val old = load()
+            val stored = old.profiles.singleOrNull { it.id == profile.id }
+                ?: return@guarded VaultResult.Unavailable
+            if (stored.name != profile.name || stored.gateway != profile.gateway ||
+                stored.retention != profile.retention) return@guarded VaultResult.Unavailable
+            val updated = NetworkProfile(stored.id, stored.name, stored.gateway, mode)
+            persist(VaultDocument(old.records, old.profiles.map { if (it.id == stored.id) updated else it }))
+            VaultResult.Ok(Unit)
+        }
+    }
+
     fun saveConfirmed(save: ConfirmedVoucherSave): VaultResult<Unit> = synchronized(lock) {
         guarded {
             val old = load()
             val profile = old.profiles.singleOrNull { it.id == save.record.profileId }
                 ?: return@guarded VaultResult.Unavailable
-            if (profile.gateway != save.record.gateway || profile.name != save.profileName)
+            if (profile.gateway != save.record.gateway || profile.name != save.profileName ||
+                profile.retention != save.retention)
                 return@guarded VaultResult.Unavailable
             val duplicate = old.records.firstOrNull {
-                it.profileId == profile.id && it.username == save.record.username && it.protocol == save.record.protocol
+                it.profileId == profile.id && it.username == save.record.username
             }
             val record = if (duplicate == null) save.record else VaultRecord(duplicate.id, profile.id,
                 profile.gateway, save.record.protocol, save.record.username, save.record.password)
-            putIn(old, record)
+            putIn(old, record, profile.retention)
         }
     }
 
@@ -91,12 +105,20 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
         }
     }
 
-    private fun putIn(old: VaultDocument, record: VaultRecord): VaultResult<Unit> {
+    private fun putIn(old: VaultDocument, record: VaultRecord,
+                      mode: RetentionMode = RetentionMode.MANUAL): VaultResult<Unit> {
         val existing = old.records.firstOrNull { it.id == record.id }
         require(existing == null || existing.profileId == record.profileId)
-        val next = old.records.filterNot { it.id == record.id } + record
-        // A pre-limit vault can be read and reduced explicitly. Never evict on update.
-        if (existing == null && next.size > VaultLimits.MAX_RECORDS) return VaultResult.Full
+        val remaining = old.records.filterNot { it.id == record.id }
+        val sameProfile = remaining.filter { it.profileId == record.profileId }
+        // The stored sequence is oldest to newest by last successful save. No clock dependency.
+        val evicted = if (existing == null && sameProfile.size >= VaultLimits.MAX_RECORDS) {
+            if (mode != RetentionMode.AUTO_OLDEST) return VaultResult.Full
+            sameProfile.take(sameProfile.size - VaultLimits.MAX_RECORDS + 1).map { it.id }.toSet()
+        } else emptySet()
+        val next = remaining.filterNot { it.id in evicted } + record
+        if (next.size > VaultLimits.MAX_DOCUMENT_RECORDS) return VaultResult.Full
+        // Eviction and insertion are a single authenticated atomic replacement.
         persist(VaultDocument(next, old.profiles))
         return VaultResult.Ok(Unit)
     }

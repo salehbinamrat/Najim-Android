@@ -229,14 +229,14 @@ class VoucherVaultTest {
         assertEquals(VaultResult.Full, f.vault.createProfile(NetworkProfile(UUID.randomUUID(), "Extra", "10.0.0.1")))
         assertEquals(VaultDocument.MAX_PROFILES, (f.vault.profiles() as VaultResult.Ok).value.size)
     }
-    @Test fun userLimitIsFiveGloballyAcrossProfiles() {
+    @Test fun userLimitIsFivePerProfile() {
         val f = Fixture()
         assertEquals(5, VaultLimits.MAX_RECORDS)
-        repeat(3) { assertTrue(f.vault.put(record(profile, "100" + it)) is VaultResult.Ok) }
-        repeat(2) { assertTrue(f.vault.put(record(other, "200" + it)) is VaultResult.Ok) }
+        repeat(5) { assertTrue(f.vault.put(record(profile, "100" + it)) is VaultResult.Ok) }
+        repeat(5) { assertTrue(f.vault.put(record(other, "200" + it)) is VaultResult.Ok) }
         assertEquals(VaultResult.Full, f.vault.put(record(other, "9999")))
-        assertEquals(3, f.list().size)
-        assertEquals(2, f.list(other).size)
+        assertEquals(5, f.list().size)
+        assertEquals(5, f.list(other).size)
     }
 
     @Test fun existingCardCanBeUpdatedAtCapacity() {
@@ -265,5 +265,83 @@ class VoucherVaultTest {
         assertTrue((f.vault.remove(profile, old[2].id) as VaultResult.Ok).value)
         assertTrue(f.vault.put(record(user = "9999")) is VaultResult.Ok)
         assertEquals(5, f.list().size)
+    }
+    private fun confirmed(p: NetworkProfile, user: String, mode: LoginProtocol = LoginProtocol.HTTPS_PAP): ConfirmedVoucherSave {
+        val wifi = com.najim.android.network.DiscoveryState.Ready(7L, p.gateway)
+        val result = if (mode.requiresConsent) com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION
+            else com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION
+        return requireNotNull(ConfirmedVoucherSave.authorize(p, wifi, wifi, user, null, mode,
+            result, true, mode.requiresConsent))
+    }
+
+    @Test fun automaticEvictsOldestOnlyWithinSelectedProfile() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1", RetentionMode.AUTO_OLDEST)
+        val q = NetworkProfile(other, "Two", "10.0.0.1")
+        f.vault.createProfile(p)
+        f.vault.createProfile(q)
+        repeat(5) {
+            assertTrue(f.vault.saveConfirmed(confirmed(p, "100" + it)) is VaultResult.Ok)
+            assertTrue(f.vault.saveConfirmed(confirmed(q, "200" + it)) is VaultResult.Ok)
+        }
+        assertTrue(f.vault.saveConfirmed(confirmed(p, "9999")) is VaultResult.Ok)
+        assertEquals(listOf("1001", "1002", "1003", "1004", "9999"), f.list().map { it.username })
+        assertEquals(List(5) { "200" + it }, f.list(other).map { it.username })
+        assertEquals(VaultResult.Full, f.vault.saveConfirmed(confirmed(q, "8888")))
+    }
+
+    @Test fun policyChangePersistsWithoutEvictingAndRejectsStaleSave() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1")
+        f.vault.createProfile(p)
+        repeat(5) { f.vault.saveConfirmed(confirmed(p, "100" + it)) }
+        assertTrue(f.vault.setRetention(p, RetentionMode.AUTO_OLDEST) is VaultResult.Ok)
+        assertEquals(5, f.list().size)
+        assertEquals(VaultResult.Unavailable, f.vault.saveConfirmed(confirmed(p, "9999")))
+        val updated = (f.vault.profiles() as VaultResult.Ok).value.single()
+        assertEquals(RetentionMode.AUTO_OLDEST, updated.retention)
+        assertTrue(f.vault.saveConfirmed(confirmed(updated, "9999")) is VaultResult.Ok)
+        assertTrue(f.vault.setRetention(updated, RetentionMode.MANUAL) is VaultResult.Ok)
+        val manual = (f.vault.profiles() as VaultResult.Ok).value.single()
+        assertEquals(VaultResult.Full, f.vault.saveConfirmed(confirmed(manual, "8888")))
+    }
+
+    @Test fun failedAutomaticWritePreservesAllOldCards() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1", RetentionMode.AUTO_OLDEST)
+        f.vault.createProfile(p)
+        repeat(5) { f.vault.saveConfirmed(confirmed(p, "100" + it)) }
+        val before = f.backend.bytes!!.copyOf()
+        f.backend.fail = true
+        assertEquals(VaultResult.Unavailable, f.vault.saveConfirmed(confirmed(p, "9999")))
+        assertArrayEquals(before, f.backend.bytes)
+        assertEquals(List(5) { "100" + it }, f.list().map { it.username })
+    }
+
+    @Test fun repeatedAccountRefreshesOrderAndDoesNotDuplicateAcrossProtocols() {
+        val f = Fixture()
+        val p = NetworkProfile(profile, "One", "10.0.0.1", RetentionMode.AUTO_OLDEST)
+        f.vault.createProfile(p)
+        repeat(5) { f.vault.saveConfirmed(confirmed(p, "100" + it)) }
+        val id = f.list().first().id
+        assertTrue(f.vault.saveConfirmed(confirmed(p, "1000", LoginProtocol.HTTP_CHAP)) is VaultResult.Ok)
+        assertEquals(id, f.list().last().id)
+        assertEquals(LoginProtocol.HTTP_CHAP, f.list().last().protocol)
+        f.vault.saveConfirmed(confirmed(p, "9999"))
+        assertEquals(listOf("1002", "1003", "1004", "1000", "9999"), f.list().map { it.username })
+    }
+
+    @Test fun versionTwoDefaultsToManual() {
+        val p = NetworkProfile(profile, "One", "10.0.0.1")
+        val bytes = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(bytes).use { out ->
+            out.writeInt(2)
+            out.writeInt(1)
+            out.writeUTF(p.id.toString())
+            out.writeUTF(p.name)
+            out.writeUTF(p.gateway)
+            out.writeInt(0)
+        }
+        assertEquals(RetentionMode.MANUAL, VaultCodec.decodeDocument(bytes.toByteArray()).profiles.single().retention)
     }
 }

@@ -137,6 +137,13 @@
     <string name="saved_deleted">تم حذف الكرت من التخزين المحلي.</string>
     <string name="saved_loaded">تم تعبئة حقول الدخول. راجع الشبكة وطريقة المصادقة ثم سجل الدخول يدويا.</string>
     <string name="saved_not_found">لم يعد الكرت موجودا. تم تحديث القائمة.</string>
-    <string name="saved_capacity">الكروت المحفوظة في التطبيق: %1$d / %2$d</string>
-    <string name="saved_capacity_full">بلغت الحد الأقصى لحفظ الكروت. احذف كرتا محفوظا قبل إضافة كرت جديد. لن يحذف التطبيق أي كرت تلقائيا.</string>
+    <string name="saved_capacity">الكروت المحفوظة للشبكة: %1$d / %2$d</string>
+    <string name="saved_capacity_full">بلغت الحد الأقصى لهذه الشبكة. احذف كرتا يدويا قبل حفظ كرت جديد.</string>
+    <string name="saved_auto_full">عند حفظ كرت جديد بعد نجاح المصادقة سيزال الأقدم من هذه الشبكة فقط.</string>
+    <string name="saved_retention_title">إدارة الكروت عند الامتلاء</string>
+    <string name="saved_retention_manual">حذف يدوي</string>
+    <string name="saved_retention_auto">حذف الأقدم تلقائيا</string>
+    <string name="saved_retention_confirm">تفعيل استبدال أقدم الكروت في ملف %1$s عند حفظ كرت جديد ناجح؟ لن يحذف أي كرت الآن. إذا كانت القائمة القديمة تتجاوز الحد فستخفض إلى خمسة عند الحفظ الجديد.</string>
+    <string name="saved_retention_enable">تفعيل الحذف التلقائي</string>
+    <string name="saved_retention_changed">تم حفظ طريقة إدارة الكروت لهذه الشبكة. اختر الملف مجددا.</string>
 </resources>

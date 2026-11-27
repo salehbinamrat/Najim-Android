@@ -3,8 +3,11 @@ package com.najim.android.storage
 import com.najim.android.auth.LoginRequest
 import java.util.UUID
 
+internal enum class RetentionMode { MANUAL, AUTO_OLDEST }
+
 /** A user-selected label and gateway, not a cryptographic Wi-Fi identity. */
-internal class NetworkProfile(val id: UUID, val name: String, val gateway: String) {
+internal class NetworkProfile(val id: UUID, val name: String, val gateway: String,
+                              val retention: RetentionMode = RetentionMode.MANUAL) {
     init {
         require(name.length in 1..64 && name == name.trim())
         require(name.none { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() })
@@ -19,7 +22,7 @@ internal class VaultDocument(
     val profiles: List<NetworkProfile> = emptyList()
 ) {
     init {
-        require(records.size <= VaultLimits.MAX_LEGACY_RECORDS)
+        require(records.size <= VaultLimits.MAX_DOCUMENT_RECORDS)
         require(profiles.size <= MAX_PROFILES)
         require(records.map { it.id }.distinct().size == records.size)
         require(profiles.map { it.id }.distinct().size == profiles.size)
