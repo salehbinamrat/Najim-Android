@@ -34,4 +34,40 @@ class FrameGateTest {
         assertTrue(next.tryStart(0))
         assertTrue(next.mayPublish())
     }
+    @Test fun concurrentAdmissionAcceptsExactlyOneFrame() {
+        val gate = FrameGate()
+        val ready = java.util.concurrent.CountDownLatch(8)
+        val go = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(8)
+        try {
+            val results = List(8) {
+                pool.submit(java.util.concurrent.Callable {
+                    ready.countDown()
+                    check(go.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    gate.tryStart(0)
+                })
+            }
+            assertTrue(ready.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            go.countDown()
+            assertEquals(1, results.count { it.get(5, java.util.concurrent.TimeUnit.SECONDS) })
+        } finally {
+            go.countDown()
+            pool.shutdownNow()
+        }
+    }
+    @Test fun mainStopIsVisibleToWorkerAndFinishCannotReopenGate() {
+        val gate = FrameGate()
+        val pool = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            assertTrue(pool.submit(java.util.concurrent.Callable { gate.tryStart(0) })
+                .get(5, java.util.concurrent.TimeUnit.SECONDS))
+            gate.stop()
+            assertFalse(pool.submit(java.util.concurrent.Callable {
+                gate.finish()
+                gate.mayPublish() || gate.tryStart(1000)
+            }).get(5, java.util.concurrent.TimeUnit.SECONDS))
+        } finally {
+            pool.shutdownNow()
+        }
+    }
 }

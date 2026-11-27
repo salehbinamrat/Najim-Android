@@ -165,7 +165,7 @@ private fun CameraPreview(
                     analysis = frames
                     val worker = CameraVoucherAnalyzer(mode) { result -> if (active) read(result) }
                     analyzer = worker
-                    frames.setAnalyzer(executor, worker)
+                    frames.setAnalyzer(CameraVoucherAnalyzer.frameWorker, worker)
                     camera.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, p, frames)
                 } catch (_: Exception) {
                     if (active) failure()
