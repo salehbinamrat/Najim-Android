@@ -25,3 +25,8 @@
 - Delete only from local vault, not RouterOS. No cloud sync, no backup, no silent eviction. Current UI manages cards for manually selected profiles matching current gateway; offline catalog management and deleting/renaming profiles are not implemented.
 - Cancel queued operations and ignore stale completion on lifecycle/network change; a write already started may complete. Decrypted credentials exist transiently in process memory; no forensic deletion guarantee.
 - 7 added JVM tests for masked catalog, scope, explicit selection, stale callbacks, and deletion. Real AndroidKeyStore, Compose UI and device acceptance remain pending. No new libraries or permissions.
+
+## Revision 2026-11-27 — maximum five saved vouchers
+- User decision: maximum five new saved voucher records globally across all profiles, not five per profile. Profile limit remains 20. Existing card updates at capacity are allowed, new records rejected without eviction.
+- Existing pre-limit vaults containing 6–20 records remain readable; the user must delete records explicitly before adding any new card. Deletion and existing updates remain possible. The UI displays total stored records including older orphan records. Orphans are not adopted automatically; explicit orphan recovery/deletion UI is still pending if any pre-release data exists.
+- All confirmed-login, encryption, profile isolation and consent rules remain unchanged. Login without saving remains possible. Tests exercise global capacity, updates, and legacy oversized vault compatibility.

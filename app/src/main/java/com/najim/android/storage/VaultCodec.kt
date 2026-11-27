@@ -53,7 +53,7 @@ internal object VaultCodec {
                 List(count) { NetworkProfile(UUID.fromString(input.readUTF()), input.readUTF(), input.readUTF()) }
             } else emptyList()
             val size = input.readInt()
-            require(size in 0..VaultLimits.MAX_RECORDS)
+            require(size in 0..VaultLimits.MAX_LEGACY_RECORDS)
             val records = List(size) {
                 val id = UUID.fromString(input.readUTF())
                 val profile = UUID.fromString(input.readUTF())

@@ -10,10 +10,6 @@ import com.najim.android.ocr.GalleryState
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +23,7 @@ import com.najim.android.auth.SessionViewState
 import com.najim.android.network.DiscoveryState
 import com.najim.android.network.WifiDiscovery
 import com.najim.android.ui.FoundationScreen
+import com.najim.android.ui.NajimTheme
 import com.najim.android.storage.AndroidVault
 import com.najim.android.storage.ProfileController
 import com.najim.android.storage.ProfileState
@@ -75,7 +72,7 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
+            NajimTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,

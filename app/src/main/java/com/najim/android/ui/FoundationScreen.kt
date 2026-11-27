@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -59,10 +60,12 @@ internal fun FoundationScreen(
     val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
         (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
     Scaffold { insets ->
-        Column(Modifier.fillMaxSize().padding(insets).imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+        BoxWithConstraints(Modifier.fillMaxSize().padding(insets).imePadding(), contentAlignment = Alignment.TopCenter) {
+        val horizontalPadding = if (maxWidth < 360.dp) 12.dp else 20.dp
+        Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(horizontal = horizontalPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.foundation_notice))
+            NajimHeader()
             NetworkCard(network, refreshNetwork)
             SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
                 refresh = refreshSession, clear = clearSession, logout = logoutSession)
@@ -216,6 +219,7 @@ internal fun FoundationScreen(
                 is LoginAttemptState.Finished -> resultMessage(attempt.result)
             }
             if (message != null) Text(stringResource(message))
+        }
         }
     }
 }

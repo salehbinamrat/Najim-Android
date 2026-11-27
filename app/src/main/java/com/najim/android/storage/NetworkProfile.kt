@@ -19,7 +19,7 @@ internal class VaultDocument(
     val profiles: List<NetworkProfile> = emptyList()
 ) {
     init {
-        require(records.size <= VaultLimits.MAX_RECORDS)
+        require(records.size <= VaultLimits.MAX_LEGACY_RECORDS)
         require(profiles.size <= MAX_PROFILES)
         require(records.map { it.id }.distinct().size == records.size)
         require(profiles.map { it.id }.distinct().size == profiles.size)

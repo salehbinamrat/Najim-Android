@@ -17,6 +17,6 @@ internal class SavedVoucher(
     }
 }
 
-internal class VaultCatalog(val profiles: List<NetworkProfile>, val cards: List<SavedVoucher>) {
+internal class VaultCatalog(val profiles: List<NetworkProfile>, val cards: List<SavedVoucher>, val totalRecords: Int) {
     override fun toString() = "VaultCatalog(redacted)"
 }
