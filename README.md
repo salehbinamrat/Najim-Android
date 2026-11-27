@@ -16,3 +16,7 @@ gradle :app:assembleFullArm32Debug :app:assembleFullArm64Debug :app:assembleLite
 ```
 CI يستهدف أربعة APK تجريبية بتوقيع debug فقط وSHA-256. لا دمج قبل نجاح المسارين. لا نشر إنتاج قبل توقيع المالك واختبارات الأجهزة والراوترات. لا Gradle Wrapper حتى الآن؛ CI يستخدم Gradle محددا.
 انظر docs/ROADMAP.md وdocs/RELEASE.md. لا نسخ لأكواد أو أصول NetPass. رخصة التوزيع بانتظار اختيار المالك.
+
+
+## Release candidates
+يختبر CI نوعي Debug وRelease لكل نسخة، ويبني أيضا أربع حزم Release غير موقعة في حزمة منفصلة. الحزم غير الموقعة غير قابلة للتثبيت. التوقيع النهائي بمفتاح المالك والتجارب الميدانية مطلوبان قبل النشر. راجع docs/RELEASE.md.

@@ -89,3 +89,7 @@
 ## Phase 13A — four debug preflight variants
 - Phase 12C passed both paths (45963075073): 131 components/0 OSV matches, APK 4 permissions/20 native libraries/0 audit findings. Merge 34152f54db111cb3b8ec576793d3f78d87aaf17c.
 - Full/Lite × ARM32/ARM64 product flavors, shared code, full bundled OCR, lite Google Play services OCR 19.0.2, shared bundled QR. Arabic edition guidance, no claim of Lite first-use offline OCR. Test/lint all four, scan all resolved runtime and test graphs, build and inspect four debug APKs after verification. Two CI audit tests added. Same package ID; no production signing or publication. See docs/RELEASE.md. Field gates remain required.
+
+## Phase 13B — release build verification
+- Phase 13A passed 45963895362, 134 Maven components with zero OSV matches, all four debug APKs passed artifact audit and checksums. Merge d7e7e3e9530dc7798079f14c9e94fbbeeca36a8e.
+- Verify all debug and release unit tests and lint before assembling, scan release unit-test classpaths, generate four unsigned non-debug release candidates alongside debug preflight. Audit release SDK levels, debuggable/testOnly flags, exact ABI and alignment; separate checksum artifacts. Two audit regression tests. Handle recognizer initialization failure without crashing the camera/gallery flow (including Lite without supported services). No production keys, no publication, no runtime dependency change. Physical device/RouterOS and owner signing/license remain mandatory release gates.

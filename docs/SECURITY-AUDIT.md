@@ -18,3 +18,6 @@ Phase 12B passed run 45962335216: OSV checked 131 resolved Maven components; 0 m
 
 
 Phase 12C verified in run 45963075073: both jobs passed, 131 Maven components / zero OSV matches, universal debug APK 4 permissions and 20 native libraries / zero audit-rule findings, signature and alignment checks passed. Merged 34152f54db111cb3b8ec576793d3f78d87aaf17c. Phase 13A extends those gates to four exact-ABI APKs and scans all flavor dependency graphs. New Lite dependency not yet scanned; device validation pending.
+
+
+Phase 13A verified: run 45963895362, 134 Maven coordinates / 0 OSV matches, all four APKs 4 permissions each / 0 rule findings, Full 5 and Lite 4 native libraries per ABI; checksum verification successful. Phase 13B adds release manifest restrictions and unsigned artifact inspection. Production signature verification is NOT complete; no signing identity supplied.

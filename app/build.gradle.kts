@@ -26,6 +26,14 @@ android {
             ndk { abiFilters += "arm64-v8a" }
         }
     }
+    buildTypes {
+        getByName("release") {
+            isDebuggable = false
+            isMinifyEnabled = false
+            // No production keys in CI or repository. Release APKs are unsigned.
+            signingConfig = null
+        }
+    }
     buildFeatures { compose = true }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -64,7 +72,7 @@ tasks.register("writeDependencyInventory") {
         val variants = listOf("fullArm32", "fullArm64", "liteArm32", "liteArm64")
         val names = variants.flatMap { variant ->
             listOf(variant + "DebugRuntimeClasspath", variant + "ReleaseRuntimeClasspath",
-                variant + "DebugUnitTestRuntimeClasspath")
+                variant + "DebugUnitTestRuntimeClasspath", variant + "ReleaseUnitTestRuntimeClasspath")
         }
         for (name in names) {
             val graph = configurations.getByName(name).incoming.resolutionResult
