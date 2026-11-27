@@ -80,6 +80,11 @@ class MainActivity : ComponentActivity() {
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
                             createProfile = { name -> profiles.create(discoveryState.value, name) },
+                            setRetention = { profile, mode ->
+                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                    attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
+                                else profiles.setRetention(discoveryState.value, profile, mode)
+                            },
                             loadCard = { profile, card, fill ->
                                 if (session.busy || attemptState.value == LoginAttemptState.Running ||
                                     attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false

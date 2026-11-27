@@ -8,7 +8,8 @@ import com.najim.android.network.DiscoveryState
 import java.util.UUID
 
 /** Created only from the same explicitly approved attempt and its matching session result. */
-internal class ConfirmedVoucherSave private constructor(val record: VaultRecord, val profileName: String) {
+internal class ConfirmedVoucherSave private constructor(val record: VaultRecord, val profileName: String,
+                                                        val retention: RetentionMode) {
     override fun toString() = "ConfirmedVoucherSave(redacted)"
 
     companion object {
@@ -25,7 +26,7 @@ internal class ConfirmedVoucherSave private constructor(val record: VaultRecord,
             if (!matches || LoginRequest.validateInput(selected, current, username, password, protocol,
                     legacyEvidenceApproved) != null) return null
             return ConfirmedVoucherSave(VaultRecord(UUID.randomUUID(), profile.id, profile.gateway,
-                protocol, VoucherInput.normalize(username), password), profile.name)
+                protocol, VoucherInput.normalize(username), password), profile.name, profile.retention)
         }
     }
 }

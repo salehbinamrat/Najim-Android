@@ -10,7 +10,8 @@ import java.util.UUID
 
 internal object VaultCodec {
     private const val LEGACY_VERSION = 1
-    private const val VERSION = 2
+    private const val PROFILE_VERSION = 2
+    private const val VERSION = 3
 
     fun encode(records: List<VaultRecord>): ByteArray = encodeDocument(VaultDocument(records))
 
@@ -24,6 +25,7 @@ internal object VaultCodec {
                 out.writeUTF(profile.id.toString())
                 out.writeUTF(profile.name)
                 out.writeUTF(profile.gateway)
+                out.writeUTF(profile.retention.name)
             }
             out.writeInt(records.size)
             for (record in records) {
@@ -46,14 +48,21 @@ internal object VaultCodec {
         require(bytes.size <= VaultLimits.MAX_PLAINTEXT)
         return DataInputStream(ByteArrayInputStream(bytes)).use { input ->
             val version = input.readInt()
-            require(version == VERSION || version == LEGACY_VERSION)
-            val profiles = if (version == VERSION) {
+            require(version == VERSION || version == PROFILE_VERSION || version == LEGACY_VERSION)
+            val profiles = if (version >= PROFILE_VERSION) {
                 val count = input.readInt()
                 require(count in 0..VaultDocument.MAX_PROFILES)
-                List(count) { NetworkProfile(UUID.fromString(input.readUTF()), input.readUTF(), input.readUTF()) }
+                List(count) {
+                    val id = UUID.fromString(input.readUTF())
+                    val name = input.readUTF()
+                    val gateway = input.readUTF()
+                    val mode = if (version == VERSION) RetentionMode.valueOf(input.readUTF()) else RetentionMode.MANUAL
+                    NetworkProfile(id, name, gateway, mode)
+                }
             } else emptyList()
             val size = input.readInt()
-            require(size in 0..VaultLimits.MAX_LEGACY_RECORDS)
+            val limit = if (version == VERSION) VaultLimits.MAX_DOCUMENT_RECORDS else VaultLimits.MAX_LEGACY_RECORDS
+            require(size in 0..limit)
             val records = List(size) {
                 val id = UUID.fromString(input.readUTF())
                 val profile = UUID.fromString(input.readUTF())
