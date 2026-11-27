@@ -72,3 +72,6 @@
 - Ten JVM regression tests added. Synthetic template compatibility matrix and lab checklist in docs/ROUTEROS-COMPATIBILITY.md. RouterOS 6/7, User Manager and FreeRADIUS actual deployment testing is NOT yet verified; no configuration modifications authorized or performed. Next stage 11B expands whole-flow synthetic scenarios; field tests remain a release acceptance gate.
 
 - Phase 11A CI correction: run 45959484841 failed both jobs at one regression assertion (369 tests, 1 failure). Validate decoded wholeText rather than normalized text for account identity; preserve original assertion and add three tests. No merge until corrected head passes.
+
+## Phase 11B — whole-flow compatibility regressions
+- Revalidate selected Android network after baseline/form/error/status parsing before publishing evidence. Preserve decoded error text to avoid converting zero-width characters into a known rejection; no weakened authentication or save rules. Ten new synthetic integration-style JVM tests exercise all protocols and account authorization, error cases and same-IP network changes. No new dependencies or permissions. Field acceptance still outstanding; no version-specific compatibility claim.

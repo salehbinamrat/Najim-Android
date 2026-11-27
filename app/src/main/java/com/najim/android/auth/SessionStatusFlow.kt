@@ -31,6 +31,7 @@ internal class SessionStatusFlow(
         val origin = URI(protocol.scheme, null, selected.gateway, -1, "/", null, null)
         if (SessionRedirect.loggedOut(origin, response)) return SessionStatus.LoggedOut
         val page = PortalParser.parse(origin, origin.resolve("/status"), response.statusCode, response.body)
+        if (current() != selected) return SessionStatus.NetworkChanged
         return if (page is PortalPage.AccountStatus) SessionStatus.Active(page, protocol.requiresConsent)
             else SessionStatus.Unknown
     }

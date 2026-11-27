@@ -39,7 +39,9 @@ internal class GatewayLoginFlow(
         // An explicit logged-out baseline is required. A generic /login page is not enough.
         val baseline = read(selected, GatewayPage.STATUS)
         if (baseline !is ExchangeResult.Received) return preflightFailure(baseline)
-        if (parse(origin, GatewayPage.STATUS, baseline) is PortalPage.AccountStatus) {
+        val before = parse(origin, GatewayPage.STATUS, baseline)
+        if (current() != selected) return GatewayLoginResult.NETWORK_CHANGED
+        if (before is PortalPage.AccountStatus) {
             return GatewayLoginResult.ALREADY_CONNECTED
         }
         if (!SessionRedirect.loggedOut(origin, baseline)) return GatewayLoginResult.BASELINE_UNKNOWN
@@ -48,6 +50,7 @@ internal class GatewayLoginFlow(
         val login = read(selected, GatewayPage.LOGIN)
         if (login !is ExchangeResult.Received) return preflightFailure(login)
         val form = parse(origin, GatewayPage.LOGIN, login)
+        if (current() != selected) return GatewayLoginResult.NETWORK_CHANGED
         val challenge = when (protocol) {
             LoginProtocol.HTTP_CHAP -> (form as? PortalPage.ChapForm)?.challenge
                 ?: return GatewayLoginResult.UNSUPPORTED_PORTAL
@@ -64,14 +67,16 @@ internal class GatewayLoginFlow(
         // A request can reach the gateway even if its response is lost. Never auto-retry.
         if (posted !is ExchangeResult.Received) return GatewayLoginResult.SESSION_UNVERIFIED
         if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
-        RouterErrorParser.parse(origin, posted)?.let { return it }
+        val rejection = RouterErrorParser.parse(origin, posted)
+        if (current() != selected) return GatewayLoginResult.SESSION_UNVERIFIED
+        if (rejection != null) return rejection
         if (posted.statusCode !in 200..399) return GatewayLoginResult.REQUEST_REJECTED
 
         // Independent local status fetch; never follow the POST redirect.
         val after = read(selected, GatewayPage.STATUS)
         if (after !is ExchangeResult.Received) return GatewayLoginResult.SESSION_UNVERIFIED
-        return when (SessionVerifier.evaluate(selected, current(), username, form,
-            parse(origin, GatewayPage.STATUS, after))) {
+        val observed = parse(origin, GatewayPage.STATUS, after)
+        return when (SessionVerifier.evaluate(selected, current(), username, form, observed)) {
             SessionEvidence.MATCHING_STATUS -> if (protocol.requiresConsent)
                 GatewayLoginResult.LEGACY_MATCHING_SESSION else GatewayLoginResult.MATCHING_SESSION
             SessionEvidence.ACCOUNT_MISMATCH -> GatewayLoginResult.ACCOUNT_MISMATCH

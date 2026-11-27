@@ -16,3 +16,8 @@ For each case record exact RouterOS version, RADIUS backend/version, Android ver
 
 ## Regression correction — CI run 45959484841 (2026-11-27)
 Both jobs failed the same test: PortalParserTest.invalidAccountFormattingIsNotEvidence (368/369 passed). Jsoup Element.text() normalizes text before validation, including dropping zero-width characters. Preserve decoded wholeText for account evidence in headings and tables; keep ordinary metric display normalization. Retain the original failing assertion and add three regression cases for invisible characters/entities, exact valid identity and internal whitespace. CI must re-run against the corrected head; no skipped tests or relaxed validation.
+
+
+## Phase 11B — synthetic whole-flow matrix
+- Corrected 11A head passed both CI paths (run 45960013016); merged 77952f6156b9866fd2499fc76b05156a2876a087.
+- Ten additional test methods cover all three protocols, 13 explicit localized rejection cases per protocol, all login outcome/save authorization combinations, same-IP different network IDs, concealed identity, malformed errors, transport loss, independent status and exact account mismatch. These are authored synthetic fixtures, not real firmware captures. Reject stale preflight or parsed evidence; preserve decoded error text before normalization. Real RouterOS 6/7 and RADIUS lab runs remain pending.
