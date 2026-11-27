@@ -1,6 +1,7 @@
 package com.najim.android.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,7 +19,7 @@ internal enum class NajimSection(val label: Int) {
 @Composable
 internal fun NajimNavigation(section: NajimSection, enabled: Boolean, select: (NajimSection) -> Unit) {
     Surface(tonalElevation = 3.dp) {
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp),
+        Row(Modifier.fillMaxWidth().selectableGroup().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             for (item in NajimSection.entries) {
                 val active = section == item

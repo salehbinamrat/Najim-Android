@@ -1,6 +1,7 @@
 package com.najim.android.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,15 +38,9 @@ internal fun ProfilePicker(network: DiscoveryState, state: ProfileState, selecte
                         else R.string.saved_auto_full))
                     RetentionPicker(selected, enabled, setRetention)
                 }
-                Row {
-                    RadioButton(selected = selected == null, enabled = enabled, onClick = { onSelect(null) })
-                    Text(stringResource(R.string.profile_none), Modifier.padding(top = 12.dp))
-                }
-                for (profile in available) {
-                    Row {
-                        RadioButton(selected = selected === profile, enabled = enabled, onClick = { onSelect(profile) })
-                        Text(profile.name, Modifier.padding(top = 12.dp))
-                    }
+                Column(Modifier.selectableGroup()) {
+                    RadioChoice(stringResource(R.string.profile_none), selected == null, enabled) { onSelect(null) }
+                    for (profile in available) RadioChoice(profile.name, selected === profile, enabled) { onSelect(profile) }
                 }
                 if (gateway != null) {
                     OutlinedTextField(value = name, onValueChange = { if (it.length <= 64) name = it },
@@ -68,15 +63,13 @@ private fun RetentionPicker(profile: NetworkProfile, enabled: Boolean,
                             setRetention: (NetworkProfile, RetentionMode) -> Boolean) {
     var confirm by remember(profile, enabled) { mutableStateOf(false) }
     Text(stringResource(R.string.saved_retention_title), style = MaterialTheme.typography.titleSmall)
-    Row {
-        RadioButton(selected = profile.retention == RetentionMode.MANUAL, enabled = enabled,
-            onClick = { if (profile.retention != RetentionMode.MANUAL) setRetention(profile, RetentionMode.MANUAL) })
-        Text(stringResource(R.string.saved_retention_manual), Modifier.padding(top = 12.dp))
-    }
-    Row {
-        RadioButton(selected = profile.retention == RetentionMode.AUTO_OLDEST, enabled = enabled,
-            onClick = { if (profile.retention != RetentionMode.AUTO_OLDEST) confirm = true })
-        Text(stringResource(R.string.saved_retention_auto), Modifier.padding(top = 12.dp))
+    Column(Modifier.selectableGroup()) {
+        RadioChoice(stringResource(R.string.saved_retention_manual), profile.retention == RetentionMode.MANUAL, enabled) {
+            if (profile.retention != RetentionMode.MANUAL) setRetention(profile, RetentionMode.MANUAL)
+        }
+        RadioChoice(stringResource(R.string.saved_retention_auto), profile.retention == RetentionMode.AUTO_OLDEST, enabled) {
+            if (profile.retention != RetentionMode.AUTO_OLDEST) confirm = true
+        }
     }
     if (confirm && enabled) AlertDialog(onDismissRequest = { confirm = false },
         title = { Text(stringResource(R.string.saved_retention_auto)) },
@@ -102,5 +95,5 @@ internal fun ProfileNoticeText(notice: ProfileNotice) {
         ProfileNotice.NOT_FOUND -> R.string.saved_not_found
         ProfileNotice.RETENTION_CHANGED -> R.string.saved_retention_changed
     }
-    if (message != null) Text(stringResource(message))
+    if (message != null) StatusNotice(stringResource(message))
 }

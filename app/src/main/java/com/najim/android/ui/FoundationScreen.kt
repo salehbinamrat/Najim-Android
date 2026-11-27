@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import com.najim.android.settings.AppearanceMode
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +38,8 @@ internal fun FoundationScreen(
     lifecycleOwner: LifecycleOwner,
     appearance: AppearanceMode, appearanceReady: Boolean, appearanceSaving: Boolean,
     appearanceFailed: Boolean, changeAppearance: (AppearanceMode) -> Unit,
+    feedbackEnabled: Boolean, feedbackReady: Boolean, feedbackSaving: Boolean,
+    feedbackFailed: Boolean, changeFeedback: (Boolean) -> Unit, scanAccepted: () -> Unit,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
     setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
@@ -156,6 +159,7 @@ internal fun FoundationScreen(
             key(network, selectedProfile) {
                 ScanPanel(lifecycleOwner, scanMode, { scanMode = it }, !busy, galleryState,
                     chooseImage, confirmImage, cancelImage, onCode = { code ->
+                        scanAccepted()
                         username = code
                         password = ""
                         usePassword = false
@@ -164,12 +168,9 @@ internal fun FoundationScreen(
                         legacySaveApproved = false
                     })
             }
-            Row {
-                Checkbox(checked = usePassword, enabled = !busy, onCheckedChange = {
-                    usePassword = it
-                    password = ""
-                })
-                Text(stringResource(R.string.login_use_password), Modifier.padding(top = 12.dp))
+            CheckChoice(stringResource(R.string.login_use_password), usePassword, !busy) {
+                usePassword = it
+                password = ""
             }
             if (usePassword) {
                 OutlinedTextField(value = password, onValueChange = { password = it },
@@ -181,36 +182,26 @@ internal fun FoundationScreen(
                 if (!validPassword) Text(stringResource(R.string.login_invalid_input))
             }
             Text(stringResource(R.string.login_protocol), style = MaterialTheme.typography.titleMedium)
-            for (mode in LoginProtocol.entries) {
-                Row {
-                    RadioButton(selected = protocol == mode, enabled = !busy, onClick = { protocol = mode })
-                    Text(stringResource(when (mode) {
+            Column(Modifier.selectableGroup()) {
+                for (mode in LoginProtocol.entries) {
+                    RadioChoice(stringResource(when (mode) {
                         LoginProtocol.HTTPS_PAP -> R.string.login_https
                         LoginProtocol.HTTP_PAP -> R.string.login_http_pap
                         LoginProtocol.HTTP_CHAP -> R.string.login_http_chap
-                    }), Modifier.padding(top = 12.dp))
+                    }), protocol == mode, !busy) { protocol = mode }
                 }
             }
             if (protocol.requiresConsent) {
                 Text(stringResource(if (protocol == LoginProtocol.HTTP_PAP) R.string.login_pap_warning
                     else R.string.login_chap_warning), color = MaterialTheme.colorScheme.error)
-                Row {
-                    Checkbox(checked = consent, enabled = !busy, onCheckedChange = { consent = it })
-                    Text(stringResource(R.string.login_consent), Modifier.padding(top = 12.dp))
-                }
+                CheckChoice(stringResource(R.string.login_consent), consent, !busy) { consent = it }
             }
             if (selectedProfile != null) {
-                Row {
-                    Checkbox(checked = saveApproved, enabled = !busy && !galleryActive,
-                        onCheckedChange = { saveApproved = it })
-                    Text(stringResource(R.string.profile_save_card), Modifier.padding(top = 12.dp))
-                }
+                CheckChoice(stringResource(R.string.profile_save_card), saveApproved,
+                    !busy && !galleryActive) { saveApproved = it }
                 if (saveApproved && protocol.requiresConsent) {
-                    Row {
-                        Checkbox(checked = legacySaveApproved, enabled = !busy && !galleryActive,
-                            onCheckedChange = { legacySaveApproved = it })
-                        Text(stringResource(R.string.profile_save_legacy), Modifier.padding(top = 12.dp))
-                    }
+                    CheckChoice(stringResource(R.string.profile_save_legacy), legacySaveApproved,
+                        !busy && !galleryActive) { legacySaveApproved = it }
                 }
             }
             Button(onClick = {
@@ -243,12 +234,13 @@ internal fun FoundationScreen(
             if (message != null) Surface(shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant) {
-                Text(stringResource(message), Modifier.fillMaxWidth().padding(12.dp))
+                StatusNotice(stringResource(message), Modifier.fillMaxWidth().padding(12.dp))
             }
             ProfileNoticeText(profileState.notice)
                 }
                 NajimSection.SETTINGS -> SettingsScreen(appearance, appearanceReady,
-                    appearanceSaving, appearanceFailed, !busy && !galleryActive, changeAppearance)
+                    appearanceSaving, appearanceFailed, !busy && !galleryActive, changeAppearance,
+                    feedbackEnabled, feedbackReady, feedbackSaving, feedbackFailed, changeFeedback)
             }
         }
         }

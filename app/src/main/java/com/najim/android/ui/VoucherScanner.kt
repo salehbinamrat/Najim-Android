@@ -74,7 +74,7 @@ internal fun VoucherScanner(owner: LifecycleOwner, mode: ScanMode, enabled: Bool
             val code = candidate
             if (code != null) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Text(code, style = MaterialTheme.typography.headlineSmall)
+                    PrivateScanText(code)
                 }
                 Text(stringResource(R.string.scan_confirm_hint))
                 Button(onClick = {

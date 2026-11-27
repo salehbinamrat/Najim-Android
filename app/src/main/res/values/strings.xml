@@ -169,4 +169,9 @@
     <string name="login_profile_heading">الشبكة المختارة للحفظ</string>
     <string name="nav_cards_short">الكروت</string>
     <string name="app_subtitle">إدارة الاتصال والكروت بسهولة</string>
+    <string name="settings_accessibility">إمكانية الوصول والتنبيهات</string>
+    <string name="settings_feedback">تنبيهات صوتية قصيرة</string>
+    <string name="settings_feedback_info">نغمات اختيارية للنتائج وقبول المسح أثناء استخدام التطبيق. لا تنطق رقم الكرت أو كلمة المرور. تتبع مستوى صوت الوسائط في الهاتف.</string>
+    <string name="settings_feedback_failed">تعذر قراءة أو حفظ خيار التنبيهات. تم إيقاف الصوت احترازيا.</string>
+    <string name="scan_private_candidate">تم التعرف على رقم مرشح. الرقم مخفي عن قارئ الشاشة حفاظا على الخصوصية.</string>
 </resources>
