@@ -137,4 +137,6 @@
     <string name="saved_deleted">تم حذف الكرت من التخزين المحلي.</string>
     <string name="saved_loaded">تم تعبئة حقول الدخول. راجع الشبكة وطريقة المصادقة ثم سجل الدخول يدويا.</string>
     <string name="saved_not_found">لم يعد الكرت موجودا. تم تحديث القائمة.</string>
+    <string name="saved_capacity">الكروت المحفوظة في التطبيق: %1$d / %2$d</string>
+    <string name="saved_capacity_full">بلغت الحد الأقصى لحفظ الكروت. احذف كرتا محفوظا قبل إضافة كرت جديد. لن يحذف التطبيق أي كرت تلقائيا.</string>
 </resources>

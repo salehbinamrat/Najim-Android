@@ -229,4 +229,41 @@ class VoucherVaultTest {
         assertEquals(VaultResult.Full, f.vault.createProfile(NetworkProfile(UUID.randomUUID(), "Extra", "10.0.0.1")))
         assertEquals(VaultDocument.MAX_PROFILES, (f.vault.profiles() as VaultResult.Ok).value.size)
     }
+    @Test fun userLimitIsFiveGloballyAcrossProfiles() {
+        val f = Fixture()
+        assertEquals(5, VaultLimits.MAX_RECORDS)
+        repeat(3) { assertTrue(f.vault.put(record(profile, "100" + it)) is VaultResult.Ok) }
+        repeat(2) { assertTrue(f.vault.put(record(other, "200" + it)) is VaultResult.Ok) }
+        assertEquals(VaultResult.Full, f.vault.put(record(other, "9999")))
+        assertEquals(3, f.list().size)
+        assertEquals(2, f.list(other).size)
+    }
+
+    @Test fun existingCardCanBeUpdatedAtCapacity() {
+        val f = Fixture()
+        val first = record()
+        assertTrue(f.vault.put(first) is VaultResult.Ok)
+        repeat(4) { assertTrue(f.vault.put(record()) is VaultResult.Ok) }
+        assertTrue(f.vault.put(VaultRecord(first.id, profile, first.gateway, first.protocol,
+            first.username, "new-secret")) is VaultResult.Ok)
+        assertEquals(5, f.list().size)
+        assertEquals("new-secret", f.list().single { it.id == first.id }.password)
+    }
+
+    @Test fun preLimitVaultRemainsReadableWithoutSilentEviction() {
+        val f = Fixture()
+        val old = List(7) { record(user = "100" + it) }
+        f.backend.replace(VaultCipher.seal(f.keys.create(), VaultCodec.encode(old)))
+        val original = f.backend.bytes!!.copyOf()
+        assertEquals(7, f.list().size)
+        assertEquals(VaultResult.Full, f.vault.put(record(user = "9999")))
+        assertArrayEquals(original, f.backend.bytes)
+        assertTrue((f.vault.remove(profile, old[0].id) as VaultResult.Ok).value)
+        assertTrue((f.vault.remove(profile, old[1].id) as VaultResult.Ok).value)
+        assertEquals(5, f.list().size)
+        assertEquals(VaultResult.Full, f.vault.put(record(user = "9999")))
+        assertTrue((f.vault.remove(profile, old[2].id) as VaultResult.Ok).value)
+        assertTrue(f.vault.put(record(user = "9999")) is VaultResult.Ok)
+        assertEquals(5, f.list().size)
+    }
 }

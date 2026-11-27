@@ -11,6 +11,7 @@ import com.najim.android.network.DiscoveryState
 import com.najim.android.storage.NetworkProfile
 import com.najim.android.storage.ProfileNotice
 import com.najim.android.storage.ProfileState
+import com.najim.android.storage.VaultLimits
 
 @Composable
 internal fun ProfilePicker(network: DiscoveryState, state: ProfileState, selected: NetworkProfile?,
@@ -25,6 +26,11 @@ internal fun ProfilePicker(network: DiscoveryState, state: ProfileState, selecte
             Text(stringResource(R.string.profile_identity_warning))
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (state.ready) {
+                Text(stringResource(R.string.saved_capacity, state.totalRecords, VaultLimits.MAX_RECORDS),
+                    style = MaterialTheme.typography.labelLarge)
+                if (state.totalRecords >= VaultLimits.MAX_RECORDS) {
+                    Text(stringResource(R.string.saved_capacity_full), color = MaterialTheme.colorScheme.error)
+                }
                 Row {
                     RadioButton(selected = selected == null, enabled = enabled, onClick = { onSelect(null) })
                     Text(stringResource(R.string.profile_none), Modifier.padding(top = 12.dp))

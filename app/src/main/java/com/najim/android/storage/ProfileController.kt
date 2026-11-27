@@ -13,7 +13,8 @@ internal class ProfileState(
     val ready: Boolean = false,
     val busy: Boolean = false,
     val notice: ProfileNotice = ProfileNotice.NONE,
-    val cards: List<SavedVoucher> = emptyList()
+    val cards: List<SavedVoucher> = emptyList(),
+    val totalRecords: Int = cards.size
 ) {
     override fun toString() = "ProfileState(redacted)"
 }
@@ -39,7 +40,7 @@ internal class ProfileController(
         if (disposed || busy || !state.ready || network !is DiscoveryState.Ready) return false
         val profile = try { NetworkProfile(UUID.randomUUID(), name.trim(), network.gateway) }
         catch (_: IllegalArgumentException) {
-            set(ProfileState(state.profiles, true, notice = ProfileNotice.INVALID, cards = state.cards))
+            set(ProfileState(state.profiles, true, notice = ProfileNotice.INVALID, cards = state.cards, totalRecords = state.totalRecords))
             return false
         }
         return launch {
@@ -79,7 +80,7 @@ internal class ProfileController(
                 else -> ProfileNotice.LOADED
             }
             if (message == ProfileNotice.LOADED) ProfileState(catalog.profiles, true,
-                notice = message, cards = catalog.cards)
+                notice = message, cards = catalog.cards, totalRecords = catalog.totalRecords)
             else readCatalog(message)
         }
     }
@@ -102,7 +103,7 @@ internal class ProfileController(
     }
 
     private fun readCatalog(notice: ProfileNotice): ProfileState = when (val result = vault.catalog()) {
-        is VaultResult.Ok -> ProfileState(result.value.profiles, true, notice = notice, cards = result.value.cards)
+        is VaultResult.Ok -> ProfileState(result.value.profiles, true, notice = notice, cards = result.value.cards, totalRecords = result.value.totalRecords)
         else -> ProfileState(notice = ProfileNotice.UNAVAILABLE)
     }
 
@@ -110,7 +111,7 @@ internal class ProfileController(
         if (disposed || busy) return false
         val operation = AtomicBoolean(false)
         token = operation
-        set(ProfileState(state.profiles, state.ready, busy = true, cards = state.cards))
+        set(ProfileState(state.profiles, state.ready, busy = true, cards = state.cards, totalRecords = state.totalRecords))
         try {
             worker.execute {
                 val next = if (operation.get()) null else try { work() }

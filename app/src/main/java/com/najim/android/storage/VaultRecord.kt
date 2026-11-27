@@ -24,7 +24,9 @@ internal class VaultRecord(
 }
 
 internal object VaultLimits {
-    const val MAX_RECORDS = 20
+    const val MAX_RECORDS = 5
+    // Read existing files without discarding cards saved by pre-limit builds.
+    const val MAX_LEGACY_RECORDS = 20
     const val MAX_PLAINTEXT = 64 * 1024
     const val MAX_ENVELOPE = MAX_PLAINTEXT + 64
 }

@@ -37,7 +37,7 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
             val document = load()
             val ids = document.profiles.map { it.id }.toSet()
             VaultResult.Ok(VaultCatalog(document.profiles,
-                document.records.filter { it.profileId in ids }.map(SavedVoucher::from)))
+                document.records.filter { it.profileId in ids }.map(SavedVoucher::from), document.records.size))
         }
     }
 
@@ -95,7 +95,8 @@ internal class VoucherVault(private val backend: VaultBackend, private val keys:
         val existing = old.records.firstOrNull { it.id == record.id }
         require(existing == null || existing.profileId == record.profileId)
         val next = old.records.filterNot { it.id == record.id } + record
-        if (next.size > VaultLimits.MAX_RECORDS) return VaultResult.Full
+        // A pre-limit vault can be read and reduced explicitly. Never evict on update.
+        if (existing == null && next.size > VaultLimits.MAX_RECORDS) return VaultResult.Full
         persist(VaultDocument(next, old.profiles))
         return VaultResult.Ok(Unit)
     }
