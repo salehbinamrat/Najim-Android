@@ -62,8 +62,8 @@ class MainActivity : ComponentActivity() {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
                             lifecycleOwner = this@MainActivity,
                             galleryState = galleryState.value,
-                            chooseImage = {
-                                if (gallery.beginPicker()) {
+                            chooseImage = { mode ->
+                                if (gallery.beginPicker(mode)) {
                                     try { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                                     catch (_: RuntimeException) { gallery.pickerResult(null) }
                                 }

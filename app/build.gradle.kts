@@ -25,6 +25,7 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation("org.jsoup:jsoup:1.24.1")
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     val cameraVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraVersion")
     implementation("androidx.camera:camera-camera2:$cameraVersion")

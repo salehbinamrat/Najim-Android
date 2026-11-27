@@ -16,6 +16,7 @@ internal sealed interface GalleryState {
     data object Failed : GalleryState
     data object NoNumber : GalleryState
     data object Ambiguous : GalleryState
+    data object Unsupported : GalleryState
     class Candidate(val value: String) : GalleryState {
         override fun toString() = "GalleryCandidate(redacted)"
     }
@@ -30,11 +31,13 @@ internal class GalleryImport(
     private val main = Handler(Looper.getMainLooper())
     private var state: GalleryState = GalleryState.Idle
     private var token: AtomicBoolean? = null
-    private var recognizer: LocalTextRecognizer? = null
+    private var recognizer: LocalVoucherRecognizer? = null
+    private var mode: ScanMode = ScanMode.OCR
     private var disposed = false
 
-    fun beginPicker(): Boolean {
+    fun beginPicker(selectedMode: ScanMode): Boolean {
         if (disposed || state == GalleryState.Picking || token != null) return false
+        mode = selectedMode
         set(GalleryState.Picking)
         return true
     }
@@ -63,7 +66,7 @@ internal class GalleryImport(
             return
         }
         if (decoded == null) { token = null; set(GalleryState.Failed); return }
-        val reader = try { LocalTextRecognizer() } catch (_: RuntimeException) {
+        val reader = try { LocalVoucherRecognizer(mode) } catch (_: RuntimeException) {
             decoded.bitmap.recycle()
             token = null
             set(GalleryState.Failed)
@@ -89,6 +92,7 @@ internal class GalleryImport(
                     is RecognitionResult.Read -> when (val suggestion = result.suggestion) {
                         is ScanSuggestion.Candidate -> GalleryState.Candidate(suggestion.value)
                         ScanSuggestion.Ambiguous -> GalleryState.Ambiguous
+                        ScanSuggestion.Unsupported -> GalleryState.Unsupported
                         else -> GalleryState.NoNumber
                     }
                     else -> GalleryState.Failed

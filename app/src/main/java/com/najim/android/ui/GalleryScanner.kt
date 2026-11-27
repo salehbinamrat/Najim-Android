@@ -33,6 +33,7 @@ internal fun GalleryScanner(state: GalleryState, enabled: Boolean, choose: () ->
                 GalleryState.Failed -> Text(stringResource(R.string.gallery_failed))
                 GalleryState.NoNumber -> Text(stringResource(R.string.gallery_no_number))
                 GalleryState.Ambiguous -> Text(stringResource(R.string.scan_ambiguous))
+                GalleryState.Unsupported -> Text(stringResource(R.string.qr_unsupported))
                 is GalleryState.Candidate -> {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         Text(state.value, style = MaterialTheme.typography.headlineSmall)
