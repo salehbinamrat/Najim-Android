@@ -63,4 +63,10 @@ class SessionStatusFlowTest {
         assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(200,
             "<form method='post' action='/login'><input name='username'></form>".toByteArray())).refresh(wifi))
     }
+    @Test fun localHtmlRedirectMayIncludeLocalManualLoginLink() {
+        val html = "<meta http-equiv='refresh' content='0;url=/login'><a href='/login'>Login</a>"
+        assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(200, html.toByteArray())).refresh(wifi))
+        assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(200,
+            html.replace("href='/login'", "href='https://evil.test/login'").toByteArray())).refresh(wifi))
+    }
 }

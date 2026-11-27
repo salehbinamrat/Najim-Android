@@ -44,7 +44,9 @@ internal class GatewayLoginFlow(
         if (before is PortalPage.AccountStatus) {
             return GatewayLoginResult.ALREADY_CONNECTED
         }
-        if (!SessionRedirect.loggedOut(origin, baseline)) return GatewayLoginResult.BASELINE_UNKNOWN
+        val loggedOut = SessionRedirect.loggedOut(origin, baseline)
+        if (current() != selected) return GatewayLoginResult.NETWORK_CHANGED
+        if (!loggedOut) return GatewayLoginResult.BASELINE_UNKNOWN
 
         // Read the portal immediately before submitting. Never change the selected protocol.
         val login = read(selected, GatewayPage.LOGIN)

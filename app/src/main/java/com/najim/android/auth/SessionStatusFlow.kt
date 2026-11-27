@@ -29,11 +29,14 @@ internal class SessionStatusFlow(
         if (current() != selected || response == ExchangeResult.NetworkChanged) return SessionStatus.NetworkChanged
         if (response !is ExchangeResult.Received) return SessionStatus.Unavailable
         val origin = URI(protocol.scheme, null, selected.gateway, -1, "/", null, null)
-        if (SessionRedirect.loggedOut(origin, response)) return SessionStatus.LoggedOut
         val page = PortalParser.parse(origin, origin.resolve("/status"), response.statusCode, response.body)
+        val loggedOut = page !is PortalPage.AccountStatus && SessionRedirect.loggedOut(origin, response)
         if (current() != selected) return SessionStatus.NetworkChanged
-        return if (page is PortalPage.AccountStatus) SessionStatus.Active(page, protocol.requiresConsent)
-            else SessionStatus.Unknown
+        return when {
+            page is PortalPage.AccountStatus -> SessionStatus.Active(page, protocol.requiresConsent)
+            loggedOut -> SessionStatus.LoggedOut
+            else -> SessionStatus.Unknown
+        }
     }
 }
 
@@ -48,7 +51,8 @@ internal object SessionRedirect {
             if (doc.select("base").isNotEmpty()) return false
             val refresh = doc.select("meta[http-equiv=refresh]")
             if (refresh.isNotEmpty()) {
-                if (refresh.size != 1 || doc.select("form, a[href], script, input").isNotEmpty()) return false
+                if (refresh.size != 1 || doc.select("form, script, input").isNotEmpty()) return false
+                if (doc.select("a[href]").any { !localLogin(origin, it.attr("href")) }) return false
                 val match = Regex("""0\s*;\s*url\s*=\s*(.+)""", RegexOption.IGNORE_CASE)
                     .matchEntire(refresh.single().attr("content").trim()) ?: return false
                 return localLogin(origin, match.groupValues[1].trim().removeSurrounding("'").removeSurrounding("\""))

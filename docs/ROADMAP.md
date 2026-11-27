@@ -106,3 +106,5 @@
 
 ## Field feedback correction — login and existing session
 - User reported failed login and missing card/session data after already joining a network. Confirmed code limitations: manual status refresh only, HTTPS default, only 3xx local redirect as logged-out baseline, named login form and limited heading/Arabic fields. Add foreground/initial network HTTPS status read (no polling), explicit read-only HTTP confirmation, and HTTPS confirmed-login refresh. No silent downgrade or HTTP credential submission. Recognize immediate same-origin HTML login redirect or supported local form as logged-out evidence, extend form identity and localized status evidence; retain strict scripts, external destination rejection and exact account matching. Eleven JVM regression tests. Actual field template and protocol not yet known; need sanitized login/status response and exact displayed error if persists. No changes to router or subscriber configuration.
+
+- Additional regression: local immediate HTML redirect may include a local manual login link, never an external link; recheck network after both logged-out and active evidence parsing. Twelve new JVM tests in total.
