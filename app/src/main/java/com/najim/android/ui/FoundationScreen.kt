@@ -58,19 +58,41 @@ internal fun FoundationScreen(
     val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling || sessionState == SessionViewState.LoggingOut
     val busy = loginBusy || sessionBusy || profileState.busy
     val galleryActive = galleryState != GalleryState.Idle
+    var section by remember { mutableStateOf(if (galleryActive) NajimSection.LOGIN else NajimSection.HOME) }
     val validation = VoucherInput.validate(username)
     val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
         (protocol != LoginProtocol.HTTP_CHAP || password.all { it.code <= 127 }))
-    Scaffold { insets ->
+    fun navigate(next: NajimSection) {
+        if (busy || galleryActive || next == section) return
+        if (section == NajimSection.LOGIN) {
+            username = ""
+            password = ""
+            usePassword = false
+            protocol = LoginProtocol.HTTPS_PAP
+            consent = false
+            saveApproved = false
+            legacySaveApproved = false
+        }
+        section = next
+    }
+    Scaffold(bottomBar = {
+        NajimNavigation(section, enabled = !busy && !galleryActive, select = ::navigate)
+    }) { insets ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(insets).imePadding(), contentAlignment = Alignment.TopCenter) {
         val horizontalPadding = if (maxWidth < 360.dp) 12.dp else 20.dp
-        Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().verticalScroll(rememberScrollState())
+        Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().verticalScroll(key(section) { rememberScrollState() })
             .padding(horizontal = horizontalPadding, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             NajimHeader()
-            NetworkCard(network, refreshNetwork)
-            SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
-                refresh = refreshSession, clear = clearSession, logout = logoutSession)
+            when (section) {
+                NajimSection.HOME -> {
+                    NetworkCard(network, refreshNetwork)
+                    SessionCard(network, sessionState, enabled = !busy && !galleryActive,
+                        refresh = refreshSession, clear = clearSession, logout = logoutSession)
+                    Button(onClick = { navigate(NajimSection.LOGIN) }, enabled = !busy && !galleryActive,
+                        modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_login)) }
+                }
+                NajimSection.CARDS -> {
             ProfilePicker(network, profileState, selectedProfile, enabled = !busy && !galleryActive,
                 onSelect = {
                     if (selectedProfile !== it) {
@@ -93,6 +115,7 @@ internal fun FoundationScreen(
                         consent = false
                         saveApproved = false
                         legacySaveApproved = false
+                        section = NajimSection.LOGIN
                     } }, delete = { card ->
                         username = ""
                         password = ""
@@ -103,6 +126,14 @@ internal fun FoundationScreen(
                         deleteCard(chosenProfile, card)
                     })
             }
+                }
+                NajimSection.LOGIN -> {
+            val currentProfile = selectedProfile
+            Text(if (currentProfile == null) stringResource(R.string.profile_none)
+                else stringResource(R.string.login_selected_profile, currentProfile.name),
+                style = MaterialTheme.typography.titleMedium)
+            OutlinedButton(onClick = { navigate(NajimSection.CARDS) }, enabled = !busy && !galleryActive,
+                modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_cards)) }
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
@@ -130,7 +161,7 @@ internal fun FoundationScreen(
                         Modifier.padding(top = 12.dp))
                 }
             }
-            key(scanMode) {
+            key(network, selectedProfile, scanMode) {
                 VoucherScanner(lifecycleOwner, scanMode, enabled = !busy && !galleryActive, onConfirmed = { code ->
                     username = code
                     password = ""
@@ -221,6 +252,8 @@ internal fun FoundationScreen(
                 is LoginAttemptState.Finished -> resultMessage(attempt.result)
             }
             if (message != null) Text(stringResource(message))
+                }
+            }
         }
         }
     }

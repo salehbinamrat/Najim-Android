@@ -344,4 +344,16 @@ class VoucherVaultTest {
         }
         assertEquals(RetentionMode.MANUAL, VaultCodec.decodeDocument(bytes.toByteArray()).profiles.single().retention)
     }
+    @Test fun allTwentyProfilesCanStoreFiveCardsEach() {
+        val f = Fixture()
+        repeat(VaultDocument.MAX_PROFILES) { index ->
+            val p = NetworkProfile(UUID.randomUUID(), "Network " + index, "10.0.0.1")
+            assertTrue(f.vault.createProfile(p) is VaultResult.Ok)
+            repeat(5) { assertTrue(f.vault.saveConfirmed(confirmed(p, "100" + it)) is VaultResult.Ok) }
+        }
+        val catalog = (f.vault.catalog() as VaultResult.Ok).value
+        assertEquals(100, catalog.cards.size)
+        assertEquals(100, catalog.totalRecords)
+        assertTrue(catalog.cards.groupBy { it.profileId }.values.all { it.size == 5 })
+    }
 }

@@ -146,4 +146,8 @@
     <string name="saved_retention_confirm">تفعيل استبدال أقدم الكروت في ملف %1$s عند حفظ كرت جديد ناجح؟ لن يحذف أي كرت الآن. إذا كانت القائمة القديمة تتجاوز الحد فستخفض إلى خمسة عند الحفظ الجديد.</string>
     <string name="saved_retention_enable">تفعيل الحذف التلقائي</string>
     <string name="saved_retention_changed">تم حفظ طريقة إدارة الكروت لهذه الشبكة. اختر الملف مجددا.</string>
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_login">الدخول</string>
+    <string name="nav_cards">الكروت والشبكات</string>
+    <string name="login_selected_profile">ملف الشبكة: %1$s</string>
 </resources>
