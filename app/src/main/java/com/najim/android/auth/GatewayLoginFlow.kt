@@ -42,7 +42,7 @@ internal class GatewayLoginFlow(
         if (parse(origin, GatewayPage.STATUS, baseline) is PortalPage.AccountStatus) {
             return GatewayLoginResult.ALREADY_CONNECTED
         }
-        if (!loggedOutRedirect(origin, baseline)) return GatewayLoginResult.BASELINE_UNKNOWN
+        if (!SessionRedirect.loggedOut(origin, baseline)) return GatewayLoginResult.BASELINE_UNKNOWN
 
         // Read the portal immediately before submitting. Never change the selected protocol.
         val login = read(selected, GatewayPage.LOGIN)
@@ -88,18 +88,6 @@ internal class GatewayLoginFlow(
     private fun parse(origin: URI, page: GatewayPage, result: ExchangeResult.Received): PortalPage =
         PortalParser.parse(origin, origin.resolve(page.path), result.statusCode, result.body)
 
-    private fun loggedOutRedirect(origin: URI, result: ExchangeResult.Received): Boolean {
-        if (result.statusCode !in setOf(301, 302, 303, 307, 308)) return false
-        val raw = result.location ?: return false
-        if (raw.isBlank() || raw.any { it.isISOControl() || it == '\\' }) return false
-        val destination = try { origin.resolve(URI(raw)) } catch (_: java.net.URISyntaxException) {
-            return false
-        } catch (_: IllegalArgumentException) { return false }
-        // Query is evidence only, never used as a destination or forwarded.
-        return destination.scheme == origin.scheme && destination.host == origin.host &&
-            destination.port == -1 && destination.rawUserInfo == null &&
-            destination.rawPath == "/login" && destination.rawFragment == null
-    }
 
     private fun preflightFailure(result: ExchangeResult): GatewayLoginResult =
         if (result == ExchangeResult.NetworkChanged) GatewayLoginResult.NETWORK_CHANGED
