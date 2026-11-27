@@ -30,24 +30,3 @@ internal object FeedbackPolicy {
         else -> null
     }
 }
-
-/** Owner-thread gate. No deferred queue or replay on resume or opt-in. */
-internal class FeedbackGate(private val play: (FeedbackCue) -> Unit, private val stop: () -> Unit) {
-    private var foreground = false
-    private var enabled = false
-
-    fun setEnabled(value: Boolean) {
-        enabled = value
-        if (!value) stop()
-    }
-
-    fun resume() { foreground = true }
-    fun pause() {
-        foreground = false
-        stop()
-    }
-
-    fun emit(cue: FeedbackCue?) {
-        if (foreground && enabled && cue != null) play(cue)
-    }
-}
