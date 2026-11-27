@@ -99,3 +99,7 @@
 - Add offline final signed-artifact verifier: exact four candidates, unsigned checksums, trusted owner certificate, signature, unchanged payload, ABI/manifest/alignment re-audit, signed checksums and complete-only report. Six CI-only tests; no keys or publication. Explicit field acceptance checklist remains entirely pending. Implementation of signing verification does not authorize release.
 
 - 13C follow-up: require verified signature scheme v2, revalidate all candidate hashes before report publication, add one negative unit test and an actual apksigner smoke test on four disposable test-signed copies. Test wrong certificate rejection. Temporary test key and signed copies never uploaded. Same PR 37, fresh CI required; no production release/signing.
+
+## Phase 13D — user-requested independent downloads and app icon
+- 13C verified 45967205345 and merged 6b4e99ba83912c3a13b986b98edccea99c937161: 134 Maven components, zero OSV matches; eight APKs audited, four disposable signatures verified and wrong certificate rejected.
+- Replace grouped APK downloads with eight single-APK Actions artifacts (four Debug and four explicitly unsigned Release) and two checksum artifacts. Preserve all pre-upload gates and local final-signature verification. Add shared original burgundy/white vector launcher icon (legacy, adaptive and themed), manifest references, one audit regression test. No new runtime dependency, permission or production signing. Device visual/field acceptance pending.

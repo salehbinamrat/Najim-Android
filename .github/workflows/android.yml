@@ -103,15 +103,71 @@ jobs:
           name: apk-audit
           path: app/build/reports/apk-audit/
           if-no-files-found: warn
-      - name: Upload four debug preflight APKs and checksums
+      - name: Upload Najim-full-arm32-debug
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: debug-preflight-four-variants
-          path: app/build/verified-apks/
+          name: Najim-full-arm32-debug
+          path: app/build/verified-apks/Najim-full-arm32-debug.apk
+          compression-level: 0
           if-no-files-found: error
-      - name: Upload unsigned release candidates (not installable)
+      - name: Upload Najim-full-arm64-debug
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: unsigned-release-candidates
-          path: app/build/unsigned-release-candidates/
+          name: Najim-full-arm64-debug
+          path: app/build/verified-apks/Najim-full-arm64-debug.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Najim-lite-arm32-debug
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-lite-arm32-debug
+          path: app/build/verified-apks/Najim-lite-arm32-debug.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Najim-lite-arm64-debug
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-lite-arm64-debug
+          path: app/build/verified-apks/Najim-lite-arm64-debug.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload debug SHA-256 manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-debug-SHA256SUMS
+          path: app/build/verified-apks/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Upload Najim-full-arm32-release-unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-full-arm32-release-unsigned
+          path: app/build/unsigned-release-candidates/Najim-full-arm32-release-unsigned.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Najim-full-arm64-release-unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-full-arm64-release-unsigned
+          path: app/build/unsigned-release-candidates/Najim-full-arm64-release-unsigned.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Najim-lite-arm32-release-unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-lite-arm32-release-unsigned
+          path: app/build/unsigned-release-candidates/Najim-lite-arm32-release-unsigned.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload Najim-lite-arm64-release-unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-lite-arm64-release-unsigned
+          path: app/build/unsigned-release-candidates/Najim-lite-arm64-release-unsigned.apk
+          compression-level: 0
+          if-no-files-found: error
+      - name: Upload release-unsigned SHA-256 manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Najim-release-unsigned-SHA256SUMS
+          path: app/build/unsigned-release-candidates/SHA256SUMS.txt
           if-no-files-found: error
