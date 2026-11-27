@@ -36,12 +36,16 @@ internal object StatusFields {
     fun visibleEvidence(element: Element): Boolean =
         visible(element) && element.getAllElements().all(::locallyVisible)
 
-    fun rows(doc: Document): List<Pair<String, String>> =
+    fun rows(doc: Document, preserveValue: Boolean = false): List<Pair<String, String>> =
         doc.select("tr").filter(::visible).mapNotNull { row ->
             val cells = row.children().toList()
             if (cells.size != 2 || cells.any { it.tagName() !in setOf("td", "th") || !visibleEvidence(it) ||
                     it.select("[style]").any { child -> child !== it } }) null
-            else cells[0].text().trim().trimEnd(':').lowercase() to cells[1].text().trim()
+            else {
+                val value = if (preserveValue) cells[1].wholeText().trim { it in " \t\r\n" }
+                    else cells[1].text().trim()
+                cells[0].text().trim().trimEnd(':').lowercase() to value
+            }
         }
 
     fun parse(doc: Document): SessionMetrics {

@@ -94,8 +94,10 @@ internal object PortalParser {
         }
         if (!logout) return PortalPage.Unknown
         val headings = doc.select("h1").filter(StatusFields::visibleEvidence)
-            .mapNotNull { welcome.matchEntire(it.text())?.groupValues?.get(1) }
-        val rows = StatusFields.rows(doc).filter { it.first in setOf("user", "username", "اسم المستخدم") }
+            .mapNotNull { welcome.matchEntire(it.wholeText().trim { ch -> ch in " \t\r\n" })?.groupValues?.get(1) }
+        // Element.text() normalizes whitespace and removes some invisible characters.
+        // Validate the original decoded identity, not a cleaned alias.
+        val rows = StatusFields.rows(doc, preserveValue = true).filter { it.first in setOf("user", "username", "اسم المستخدم") }
             .map { it.second }
         val evidence = (headings + rows).distinct().singleOrNull() ?: return PortalPage.Unknown
         if (com.najim.android.domain.VoucherInput.validate(evidence).error != null ||

@@ -71,4 +71,22 @@ class PortalParserTest {
     @Test fun invalidAccountFormattingIsNotEvidence() {
         assertEquals(PortalPage.Unknown, parse(status("00\u200BAb"), "/status"))
     }
+    @Test fun decodedInvisibleAccountCharactersAreNotNormalizedAway() {
+        for (value in listOf("00&#8203;Ab", "00&shy;Ab", "00\u200DAb", "00\u202EAb")) {
+            assertEquals(PortalPage.Unknown, parse(status(value), "/status"))
+            val table = "<table><tr><td>Username</td><td>$value</td></tr></table><form action='/logout'></form>"
+            assertEquals(PortalPage.Unknown, parse(table, "/status"))
+        }
+    }
+    @Test fun plainAccountIdentityPreservesCaseAndLeadingZerosAcrossMarkup() {
+        assertEquals("00Ab", (parse(status("<span>00</span><b>Ab</b>"), "/status") as PortalPage.AccountStatus).username)
+        val table = "<table><tr><td>Username</td><td> 00Ab </td></tr></table><form action='/logout'></form>"
+        assertEquals("00Ab", (parse(table, "/status") as PortalPage.AccountStatus).username)
+    }
+    @Test fun visibleInternalWhitespaceCannotBeCollapsedIntoIdentity() {
+        for (value in listOf("00 Ab", "00\tAb", "00&nbsp;Ab")) {
+            assertEquals(PortalPage.Unknown, parse(status(value), "/status"))
+            assertEquals(PortalPage.Unknown, parse("<table><tr><td>User</td><td>$value</td></tr></table><a href='/logout'>Logout</a>", "/status"))
+        }
+    }
 }
