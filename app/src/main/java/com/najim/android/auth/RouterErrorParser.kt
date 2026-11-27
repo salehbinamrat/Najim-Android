@@ -66,7 +66,7 @@ internal object RouterErrorParser {
             !PortalParser.usableUsername(login.select("input[name=username]").single())) return null
 
         val explicit = doc.select(ERROR_MARKERS).toList().filter(StatusFields::visibleEvidence)
-            .map { normalize(it.text()) }.filter { it.isNotEmpty() }.distinct()
+            .map { normalize(it.wholeText()) }.filter { it.isNotEmpty() }.distinct()
         if (explicit.isEmpty()) return null
         // Unknown/contradictory visible messages cannot establish a specific rejection reason.
         val known = explicit.map { messages[it] ?: GatewayLoginResult.REQUEST_REJECTED }.distinct()
