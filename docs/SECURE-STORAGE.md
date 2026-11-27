@@ -1,0 +1,8 @@
+# Phase 07A — encrypted voucher vault foundation
+- Versioned, bounded local vault, AES-256-GCM with randomized 96-bit IV and 128-bit authentication tag, AndroidKeyStore key, private noBackupFilesDir, AtomicFile replacement with read-back verification. No new dependency or permission. Do not recreate keys or overwrite ciphertext when decryption fails. No raw credentials in result strings or logs.
+- Explicit UUID profile association; gateway address alone does not identify a network. Android network handles are transient and must not be persisted. Profile creation, identity checks, user consent and confirmed-login integration are not implemented in this change.
+- Maximum 20 records initially, no silent eviction, profile-scoped list and deletion, no automatic saving, replay or migration. Record validation reuses login input policy. The vault is not invoked by the UI yet.
+- 17 JVM tests using in-memory backend and JCA test keys. These do not validate AndroidKeyStore or Android AtomicFile behavior on real devices. API 24 unchanged.
+- Key protection depends on device implementation; hardware-backed keys are not guaranteed, no biometric or user-auth binding yet. App process access, rooted/compromised devices, memory strings, ciphertext rollback and forensic deletion remain limitations. No backup or cloud sync. No automatic reset on lost key.
+- Next 07B: explicit profile management and save consent only after matching session evidence, with separate treatment of unverified HTTP; 07C: masked saved cards, explicit selection/deletion and no automatic login. Reassess bounds and data-store choice if scope grows.
+- References: https://developer.android.com/privacy-and-security/keystore and https://developer.android.com/reference/android/util/AtomicFile
