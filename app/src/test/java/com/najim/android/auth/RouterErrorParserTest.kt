@@ -117,4 +117,14 @@ class RouterErrorParserTest {
         assertNull(parse(form + "<p class='error'>account expired</p>", gateway = URI("https://example.test/")))
 
     @Test fun oversizedResponseRejected() = assertNull(parse(form + "<p class='error'>account expired</p>" + "x".repeat(65536)))
+    @Test fun hiddenDescendantsCannotProvideSpecificError() {
+        for (marker in listOf("<span hidden>account expired</span>",
+            "<span aria-hidden='TRUE'>radius timeout</span>",
+            "<span style='visibility: hidden'>invalid password</span>")) {
+            assertNull(parse(form + "<p class='error'>" + marker + "</p>"))
+        }
+    }
+    @Test fun mixedVisibleAndConcealedWordsCannotCreateSpecificError() {
+        assertNull(parse(form + "<p class='error'>account <span hidden>expired</span></p>"))
+    }
 }

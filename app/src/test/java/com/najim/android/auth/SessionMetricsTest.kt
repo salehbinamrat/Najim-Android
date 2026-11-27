@@ -74,4 +74,25 @@ class SessionMetricsTest {
         val html = "<h1 hidden>Welcome, 0012!</h1><form action='/logout'></form>"
         assertEquals(PortalPage.Unknown, PortalParser.parse(origin, origin.resolve("/status"), 200, html.toByteArray()))
     }
+    @Test fun configuredSessionTimeoutIsNotRemainingTime() {
+        assertNull(metrics(row("session-timeout", "5h")).timeLeftSeconds)
+        assertEquals(60L, metrics(row("session-timeout", "5h") +
+            row("session-time-left", "1m")).timeLeftSeconds)
+    }
+    @Test fun ambiguousBalanceNeverBecomesBytes() {
+        for (value in listOf("100", "100 ريال", "1.50", "100 USD"))
+            assertNull(metrics(row("الرصيد المتبقي", value)).remainingTotal)
+        assertEquals("1.5 GB", metrics(row("الرصيد المتبقي", "1.5 GB")).remainingTotal?.reported)
+        assertEquals(100L, metrics(row("remain-bytes-total", "100")).remainingTotal?.exactBytes)
+    }
+    @Test fun genericTrafficLabelsRequireUnits() {
+        val m = metrics(row("upload", "100") + row("التنزيل", "200") + row("remaining upload", "300"))
+        assertNull(m.uploaded)
+        assertNull(m.downloaded)
+        assertNull(m.remainingUpload)
+        assertEquals("200 MB", metrics(row("التنزيل", "200 MB")).downloaded?.reported)
+    }
+    @Test fun hiddenDescendantDoesNotSupplyMetrics() {
+        assertNull(metrics(row("bytes-in", "<span aria-hidden='TRUE'>999</span>")).uploaded)
+    }
 }

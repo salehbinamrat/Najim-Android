@@ -50,10 +50,16 @@ internal object PortalParser {
         val forms = doc.select("form").toList()
         val login = forms.filter { it.attr("name") == "login" }.singleOrNull()
             ?: return PortalPage.Unknown
-        if (!validForm(login, gateway, page) || login.select("input[name=username]").size != 1 ||
-            login.select("input[name=password]").size > 1 || login.select("input[form], button[form], [formaction]").isNotEmpty()) {
+        if (!validForm(login, gateway, page) || !StatusFields.visible(login) ||
+            login.select("input[name=username]").size != 1 ||
+            !usableUsername(login.select("input[name=username]").single()) ||
+            login.select("input[name=password]").size > 1) {
             return PortalPage.Unknown
         }
+        // Form overrides and disabled credentials are not supported. Never infer a usable
+        // form from hidden templates or inputs assigned to a different form.
+        if (doc.select("[formaction], input[form], button[form]").isNotEmpty() ||
+            login.select("input[name=password]").any { it.hasAttr("disabled") }) return PortalPage.Unknown
         val scripts = doc.select("script").joinToString("\n") { it.data() }
         val sendin = forms.filter { it.attr("name") == "sendin" }
         val chapMarked = sendin.isNotEmpty() || scripts.contains("hexMD5", ignoreCase = true) ||
@@ -87,16 +93,23 @@ internal object PortalParser {
             localPath(it.attr(attribute), gateway, page, "/logout")
         }
         if (!logout) return PortalPage.Unknown
-        val headings = doc.select("h1").filter(StatusFields::visible)
-            .mapNotNull { welcome.matchEntire(it.text())?.groupValues?.get(1) }
-        val rows = StatusFields.rows(doc).filter { it.first in setOf("user", "username", "اسم المستخدم") }
+        val headings = doc.select("h1").filter(StatusFields::visibleEvidence)
+            .mapNotNull { welcome.matchEntire(it.wholeText().trim { ch -> ch in " \t\r\n" })?.groupValues?.get(1) }
+        // Element.text() normalizes whitespace and removes some invisible characters.
+        // Validate the original decoded identity, not a cleaned alias.
+        val rows = StatusFields.rows(doc, preserveValue = true).filter { it.first in setOf("user", "username", "اسم المستخدم") }
             .map { it.second }
         val evidence = (headings + rows).distinct().singleOrNull() ?: return PortalPage.Unknown
-        if (evidence.isBlank() || evidence.length > 128 || evidence.any { it.isWhitespace() || it.isISOControl() }) {
+        if (com.najim.android.domain.VoucherInput.validate(evidence).error != null ||
+            com.najim.android.domain.VoucherInput.normalize(evidence) != evidence) {
             return PortalPage.Unknown
         }
         return PortalPage.AccountStatus(evidence, StatusFields.parse(doc))
     }
+
+    internal fun usableUsername(input: Element): Boolean =
+        StatusFields.visible(input) && !input.hasAttr("disabled") &&
+            input.attr("type").lowercase() in setOf("", "text", "tel", "number", "email", "password", "search")
 
     internal fun validForm(form: Element, gateway: URI, page: URI) =
         form.attr("method").equals("post", ignoreCase = true) &&
