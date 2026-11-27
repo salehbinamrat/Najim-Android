@@ -11,10 +11,10 @@ import androidx.compose.ui.unit.dp
 import com.najim.android.R
 
 internal enum class NajimSection(val label: Int) {
-    HOME(R.string.nav_home), LOGIN(R.string.nav_login), CARDS(R.string.nav_cards)
+    HOME(R.string.nav_home), LOGIN(R.string.nav_login), CARDS(R.string.nav_cards), SETTINGS(R.string.nav_settings)
 }
 
-/** Stable three-section shell. No new navigation dependency or retained secret back stack. */
+/** Stable four-section shell. No new navigation dependency or retained secret back stack. */
 @Composable
 internal fun NajimNavigation(section: NajimSection, enabled: Boolean, select: (NajimSection) -> Unit) {
     Surface(tonalElevation = 3.dp) {
@@ -30,7 +30,8 @@ internal fun NajimNavigation(section: NajimSection, enabled: Boolean, select: (N
                         disabledContainerColor = if (active) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
                         disabledContentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     ), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) {
-                    Text(stringResource(item.label), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(item.label), style = MaterialTheme.typography.labelMedium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
         }

@@ -2,6 +2,8 @@ package com.najim.android.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.lifecycle.LifecycleOwner
+import androidx.activity.compose.BackHandler
+import com.najim.android.settings.AppearanceMode
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,8 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.najim.android.R
 import com.najim.android.ocr.GalleryState
@@ -35,6 +35,8 @@ import com.najim.android.storage.RetentionMode
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
+    appearance: AppearanceMode, appearanceReady: Boolean, appearanceSaving: Boolean,
+    appearanceFailed: Boolean, changeAppearance: (AppearanceMode) -> Unit,
     profileState: ProfileState, refreshProfiles: () -> Boolean, createProfile: (String) -> Boolean,
     setRetention: (NetworkProfile, RetentionMode) -> Boolean,
     loadCard: (NetworkProfile, SavedVoucher, (VaultRecord) -> Unit) -> Boolean,
@@ -75,6 +77,9 @@ internal fun FoundationScreen(
         }
         section = next
     }
+    BackHandler(enabled = section != NajimSection.HOME && !busy && !galleryActive) {
+        navigate(NajimSection.HOME)
+    }
     Scaffold(bottomBar = {
         NajimNavigation(section, enabled = !busy && !galleryActive, select = ::navigate)
     }) { insets ->
@@ -86,46 +91,38 @@ internal fun FoundationScreen(
             NajimHeader()
             when (section) {
                 NajimSection.HOME -> {
-                    NetworkCard(network, refreshNetwork)
-                    SessionCard(network, sessionState, enabled = !busy && !galleryActive,
-                        refresh = refreshSession, clear = clearSession, logout = logoutSession)
-                    Button(onClick = { navigate(NajimSection.LOGIN) }, enabled = !busy && !galleryActive,
-                        modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nav_login)) }
+                    HomeScreen(network, refreshNetwork, sessionState, !busy && !galleryActive,
+                        refreshSession, clearSession, logoutSession, openLogin = { navigate(NajimSection.LOGIN) })
                 }
                 NajimSection.CARDS -> {
-            ProfilePicker(network, profileState, selectedProfile, enabled = !busy && !galleryActive,
-                onSelect = {
-                    if (selectedProfile !== it) {
-                        username = ""
-                        password = ""
-                        usePassword = false
-                        consent = false
-                    }
-                    selectedProfile = it
-                }, refresh = refreshProfiles, create = createProfile, setRetention = setRetention)
-            val chosenProfile = selectedProfile
-            if (chosenProfile != null) {
-                SavedVoucherCard(chosenProfile, profileState.cards.filter { it.profileId == chosenProfile.id },
-                    enabled = !busy && !galleryActive,
-                    load = { card -> loadCard(chosenProfile, card) { record ->
-                        username = record.username
-                        password = record.password.orEmpty()
-                        usePassword = record.password != null
-                        protocol = record.protocol
-                        consent = false
-                        saveApproved = false
-                        legacySaveApproved = false
-                        section = NajimSection.LOGIN
-                    } }, delete = { card ->
-                        username = ""
-                        password = ""
-                        usePassword = false
-                        consent = false
-                        saveApproved = false
-                        legacySaveApproved = false
-                        deleteCard(chosenProfile, card)
-                    })
-            }
+                    CardsScreen(network, profileState, selectedProfile, !busy && !galleryActive,
+                        select = {
+                            if (selectedProfile !== it) {
+                                username = ""
+                                password = ""
+                                usePassword = false
+                                consent = false
+                            }
+                            selectedProfile = it
+                        }, refresh = refreshProfiles, create = createProfile, setRetention = setRetention,
+                        load = loadCard, delete = deleteCard,
+                        onLoaded = { record ->
+                            username = record.username
+                            password = record.password.orEmpty()
+                            usePassword = record.password != null
+                            protocol = record.protocol
+                            consent = false
+                            saveApproved = false
+                            legacySaveApproved = false
+                            section = NajimSection.LOGIN
+                        }, onDeleting = {
+                            username = ""
+                            password = ""
+                            usePassword = false
+                            consent = false
+                            saveApproved = false
+                            legacySaveApproved = false
+                        })
                 }
                 NajimSection.LOGIN -> {
             val currentProfile = selectedProfile
@@ -152,29 +149,17 @@ internal fun FoundationScreen(
                     null -> R.string.error_empty
                 }))
             }
-            Text(stringResource(R.string.scan_mode), style = MaterialTheme.typography.titleMedium)
-            for (mode in ScanMode.entries) {
-                Row {
-                    RadioButton(selected = scanMode == mode, enabled = !busy && !galleryActive,
-                        onClick = { scanMode = mode })
-                    Text(stringResource(if (mode == ScanMode.OCR) R.string.scan_mode_ocr else R.string.scan_mode_qr),
-                        Modifier.padding(top = 12.dp))
-                }
+            key(network, selectedProfile) {
+                ScanPanel(lifecycleOwner, scanMode, { scanMode = it }, !busy, galleryState,
+                    chooseImage, confirmImage, cancelImage, onCode = { code ->
+                        username = code
+                        password = ""
+                        usePassword = false
+                        consent = false
+                        saveApproved = false
+                        legacySaveApproved = false
+                    })
             }
-            key(network, selectedProfile, scanMode) {
-                VoucherScanner(lifecycleOwner, scanMode, enabled = !busy && !galleryActive, onConfirmed = { code ->
-                    username = code
-                    password = ""
-                    consent = false
-                })
-            }
-            GalleryScanner(galleryState, enabled = !busy, choose = { chooseImage(scanMode) }, confirm = {
-                confirmImage()?.let { code ->
-                    username = code
-                    password = ""
-                    consent = false
-                }
-            }, cancel = cancelImage)
             Row {
                 Checkbox(checked = usePassword, enabled = !busy, onCheckedChange = {
                     usePassword = it
@@ -252,7 +237,10 @@ internal fun FoundationScreen(
                 is LoginAttemptState.Finished -> resultMessage(attempt.result)
             }
             if (message != null) Text(stringResource(message))
+            ProfileNoticeText(profileState.notice)
                 }
+                NajimSection.SETTINGS -> SettingsScreen(appearance, appearanceReady,
+                    appearanceSaving, appearanceFailed, !busy && !galleryActive, changeAppearance)
             }
         }
         }
@@ -283,29 +271,4 @@ private fun resultMessage(result: GatewayLoginResult): Int = when (result) {
     GatewayLoginResult.ROUTER_DEVICE_RESTRICTED -> R.string.router_device_restricted
     GatewayLoginResult.ROUTER_RADIUS_TIMEOUT -> R.string.router_radius_timeout
     GatewayLoginResult.ROUTER_NO_VALID_PROFILE -> R.string.router_no_valid_profile
-}
-
-@Composable
-private fun NetworkCard(network: DiscoveryState, refresh: () -> Unit) {
-    OutlinedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.network_title), style = MaterialTheme.typography.titleMedium)
-            val message = when (network) {
-                DiscoveryState.NoWifi -> R.string.network_no_wifi
-                DiscoveryState.AmbiguousWifi -> R.string.network_ambiguous
-                DiscoveryState.NoGateway -> R.string.network_no_gateway
-                DiscoveryState.AmbiguousGateway -> R.string.network_ambiguous_gateway
-                DiscoveryState.Unavailable -> R.string.network_unavailable
-                is DiscoveryState.Ready -> R.string.network_gateway
-            }
-            Text(stringResource(message))
-            if (network is DiscoveryState.Ready) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Text(network.gateway)
-                }
-                Text(stringResource(R.string.network_not_authenticated))
-            }
-            OutlinedButton(onClick = refresh) { Text(stringResource(R.string.network_refresh)) }
-        }
-    }
 }

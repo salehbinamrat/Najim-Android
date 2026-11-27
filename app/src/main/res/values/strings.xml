@@ -150,4 +150,14 @@
     <string name="nav_login">الدخول</string>
     <string name="nav_cards">الكروت والشبكات</string>
     <string name="login_selected_profile">ملف الشبكة: %1$s</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="settings_appearance">مظهر التطبيق</string>
+    <string name="settings_system">حسب إعداد النظام</string>
+    <string name="settings_light">نهاري</string>
+    <string name="settings_dark">ليلي</string>
+    <string name="settings_save_failed">تعذر قراءة أو حفظ إعداد المظهر. لم يتم تأكيد التغيير.</string>
+    <string name="settings_privacy">الخصوصية والأمان</string>
+    <string name="settings_storage_info">يتم حفظ حتى %1$d كروت لكل ملف شبكة في تخزين محلي مشفر. يمكن إدارة الحذف من قسم الكروت والشبكات.</string>
+    <string name="settings_http_info">تتطلب كل عملية HTTP غير المشفرة موافقة منفصلة. لا يتم تجاوز التحقق من هوية البوابة عبر HTTPS.</string>
+    <string name="settings_scan_info">تتم قراءة الكروت والصور محليا ولا يسجل التطبيق الدخول تلقائيا بعد المسح.</string>
 </resources>
