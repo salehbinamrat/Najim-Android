@@ -24,7 +24,9 @@ import androidx.lifecycle.LifecycleOwner
 import com.najim.android.R
 import com.najim.android.domain.SpokenVoucher
 
-/** One bounded, user-triggered recording; no cloud recognizer fallback or audio files. */
+/** Local recognition preferred. System provider only after separate explicit consent;
+ * no automatic fallback, audio files, password dictation or automatic login.
+ */
 @Composable
 internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
                             onListening: (Boolean) -> Unit, silenceAudio: () -> Unit,
@@ -33,7 +35,9 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
     val currentListening by rememberUpdatedState(onListening)
     val currentAccepted by rememberUpdatedState(onAccepted)
     val currentEnabled by rememberUpdatedState(enabled)
-    var candidate by remember { mutableStateOf<String?>(null) }
+    var candidates by remember { mutableStateOf<List<String>>(emptyList()) }
+    var systemConfirmation by remember { mutableStateOf(false) }
+    var language by remember { mutableStateOf("ar-SA") }
     var notice by remember { mutableStateOf<Int?>(null) }
     var listening by remember { mutableStateOf(false) }
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -52,38 +56,39 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
         currentListening(false)
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        notice = if (it) R.string.voice_permission else R.string.voice_unavailable
+        notice = if (it) R.string.voice_permission_granted else R.string.voice_permission_denied
     }
-    val available = remember(context) {
-        Build.VERSION.SDK_INT >= 31 && runCatching {
-            SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
-        }.getOrDefault(false)
-    }
+    fun localAvailable(): Boolean = Build.VERSION.SDK_INT >= 31 && runCatching {
+        SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+    }.getOrDefault(false)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
                 finish()
-                candidate = null
+                candidates = emptyList()
+                systemConfirmation = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             finish()
-            candidate = null
+            candidates = emptyList()
         }
     }
     LaunchedEffect(enabled) {
         if (!enabled) {
             finish()
-            candidate = null
+            candidates = emptyList()
         }
     }
-    OutlinedButton(onClick = {
-        candidate = null
+    fun begin(systemProvider: Boolean) {
+        candidates = emptyList()
         notice = null
-        if (Build.VERSION.SDK_INT < 31 || !available) {
+        if (!systemProvider && !localAvailable()) {
             notice = R.string.voice_unavailable
+        } else if (systemProvider && !runCatching { SpeechRecognizer.isRecognitionAvailable(context) }.getOrDefault(false)) {
+            notice = R.string.voice_no_service
         } else if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             notice = R.string.voice_permission
             try { permission.launch(Manifest.permission.RECORD_AUDIO) }
@@ -91,7 +96,9 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
         } else if (recognizer == null && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             try {
                 silenceAudio()
-                val instance = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+                val instance = if (systemProvider) SpeechRecognizer.createSpeechRecognizer(context)
+                    else if (Build.VERSION.SDK_INT >= 31) SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+                    else return
                 recognizer = instance
                 listening = true
                 currentListening(true)
@@ -106,17 +113,23 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
                     override fun onError(error: Int) {
                         if (recognizer !== instance) return
                         finish()
-                        notice = R.string.voice_failed
+                        notice = when (error) {
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> R.string.voice_permission_denied
+                            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> R.string.voice_language_unavailable
+                            SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> R.string.voice_network_failure
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> R.string.voice_recognizer_busy
+                            else -> R.string.voice_failed
+                        }
                     }
                     override fun onResults(results: Bundle?) {
                         if (recognizer !== instance) return
-                        val number = if (currentEnabled &&
+                        val options = if (currentEnabled &&
                             lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
-                            SpokenVoucher.candidate(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty())
-                        else null
+                            SpokenVoucher.reviewOptions(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty())
+                        else emptyList()
                         finish()
-                        candidate = number
-                        notice = if (number == null) R.string.voice_failed else null
+                        candidates = options
+                        notice = if (options.isEmpty()) R.string.voice_failed else null
                     }
                 })
                 val limit = Runnable {
@@ -129,7 +142,7 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
                 main.postDelayed(limit, 12_000)
                 instance.startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar")
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
                     putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
@@ -139,8 +152,30 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
                 notice = R.string.voice_unavailable
             }
         }
-    }, enabled = enabled && !listening, modifier = Modifier.fillMaxWidth()) {
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        FilterChip(selected = language == "ar-SA", onClick = { language = "ar-SA"; candidates = emptyList() },
+            enabled = enabled && !listening, label = { Text(stringResource(R.string.voice_arabic)) })
+        FilterChip(selected = language == "en-US", onClick = { language = "en-US"; candidates = emptyList() },
+            enabled = enabled && !listening, label = { Text(stringResource(R.string.voice_english)) })
+    }
+    OutlinedButton(onClick = { begin(false) }, enabled = enabled && !listening,
+        modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.voice_input))
+    }
+    OutlinedButton(onClick = { systemConfirmation = true }, enabled = enabled && !listening,
+        modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.voice_system)) }
+    if (systemConfirmation && enabled && !listening) {
+        AlertDialog(onDismissRequest = { systemConfirmation = false },
+            title = { Text(stringResource(R.string.voice_system)) },
+            text = { Text(stringResource(R.string.voice_system_warning)) },
+            confirmButton = { TextButton(onClick = {
+                systemConfirmation = false
+                begin(true)
+            }) { Text(stringResource(R.string.voice_system_accept)) } },
+            dismissButton = { TextButton(onClick = { systemConfirmation = false }) {
+                Text(stringResource(R.string.voice_discard))
+            } })
     }
     Text(stringResource(R.string.voice_hint), style = MaterialTheme.typography.bodySmall)
     if (listening) {
@@ -150,13 +185,15 @@ internal fun VoiceInputPanel(lifecycleOwner: LifecycleOwner, enabled: Boolean,
         }
     }
     notice?.let { StatusNotice(stringResource(it)) }
-    val reviewed = candidate
-    if (reviewed != null && enabled) {
+    if (candidates.isNotEmpty() && enabled) {
         Text(stringResource(R.string.voice_review))
-        Text(reviewed, style = MaterialTheme.typography.titleMedium)
-        Button(onClick = { candidate = null; currentAccepted(reviewed) },
-            modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.voice_accept)) }
-        OutlinedButton(onClick = { candidate = null }, modifier = Modifier.fillMaxWidth()) {
+        for (reviewed in candidates) {
+            OutlinedButton(onClick = { candidates = emptyList(); currentAccepted(reviewed) },
+                modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.voice_accept_number, reviewed))
+            }
+        }
+        OutlinedButton(onClick = { candidates = emptyList() }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.voice_discard))
         }
     }

@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var audioAllowed = false
     private val speechEnabled = mutableStateOf(false)
     private val speechAvailable = mutableStateOf(false)
+    private var pendingReadAloud: SessionViewState.Snapshot? = null
     private val speechSaving = mutableStateOf(false)
     private val speechFailed = mutableStateOf(false)
     private val feedbackEnabled = mutableStateOf(false)
@@ -84,7 +85,15 @@ class MainActivity : ComponentActivity() {
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())
-        speechPlayer = ArabicSpeech(applicationContext) { speechAvailable.value = it }
+        speechPlayer = ArabicSpeech(applicationContext) { available ->
+            speechAvailable.value = available
+            val requested = pendingReadAloud
+            pendingReadAloud = null
+            val active = requested?.status as? com.najim.android.auth.SessionStatus.Active
+            if (available && resumed && requested != null && sessionState.value === requested && active != null) {
+                speechPlayer.speakMetrics(active.account.metrics)
+            }
+        }
         appearancePreferences = AppearancePreferences(applicationContext)
         storageWorker.execute {
             val loaded = runCatching { appearancePreferences.read() }
@@ -121,7 +130,8 @@ class MainActivity : ComponentActivity() {
                     when (next.result) {
                         com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession()
                         com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION -> refreshInitialSession(true)
-                        com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED -> refreshInitialSession(attemptHttpApproved)
+                        com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED,
+                        com.najim.android.auth.GatewayLoginResult.SESSION_UNVERIFIED -> refreshInitialSession(attemptHttpApproved)
                         else -> Unit
                     }
                 }
@@ -135,6 +145,7 @@ class MainActivity : ComponentActivity() {
                 val previous = sessionState.value
                 sessionState.value = next
                 if (previous != next) {
+                    pendingReadAloud = null
                     speechPlayer.silence()
                     guidance.emit(SpeechPolicy.session(next))
                 }
@@ -174,14 +185,20 @@ class MainActivity : ComponentActivity() {
                             changeSpeech = ::changeSpeech,
                             readSessionAloud = { expected ->
                                 val active = expected.status as? com.najim.android.auth.SessionStatus.Active
-                                if (resumed && audioAllowed && speechEnabled.value && !speechFailed.value &&
-                                    !speechSaving.value && sessionState.value === expected && active != null &&
+                                if (resumed && sessionState.value === expected && active != null &&
                                     !session.busy) {
                                     tonePlayer.stop()
-                                    speechPlayer.speakMetrics(active.account.metrics)
+                                    if (!speechAvailable.value) {
+                                        // Initialize on first explicit tap and read only this still-current snapshot.
+                                        pendingReadAloud = null
+                                        speechPlayer.stop()
+                                        pendingReadAloud = expected
+                                        speechPlayer.prepare()
+                                        false
+                                    } else speechPlayer.speakMetrics(active.account.metrics)
                                 } else false
                             },
-                            silenceAudio = { tonePlayer.stop(); speechPlayer.silence() },
+                            silenceAudio = { pendingReadAloud = null; tonePlayer.stop(); speechPlayer.silence() },
                             scanAccepted = { guidance.emit(SpeechCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
@@ -316,6 +333,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         resumed = false
+        pendingReadAloud = null
         syncGuidance()
         super.onPause()
     }
@@ -329,12 +347,13 @@ class MainActivity : ComponentActivity() {
         refreshInitialSession()
     }
 
-    private fun refreshInitialSession(legacy: Boolean = false) {
-        if (!started || !::session.isInitialized || session.busy ||
+    private fun refreshInitialSession(legacy: Boolean? = null) {
+        if (!started || !::session.isInitialized ||
             attemptState.value == LoginAttemptState.Running ||
             attemptState.value == LoginAttemptState.Cancelling ||
             galleryState.value != GalleryState.Idle) return
-        session.refresh(discoveryState.value, legacy, legacy)
+        if (legacy == null) session.refreshAutomatic(discoveryState.value)
+        else session.refresh(discoveryState.value, legacy, legacy)
     }
 
     override fun onStop() {

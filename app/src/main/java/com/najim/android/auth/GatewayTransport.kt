@@ -27,7 +27,8 @@ internal class GatewayTransport(
     private val protocol: LoginProtocol = LoginProtocol.HTTPS_PAP,
     private val allowInsecureHttp: Boolean = false,
     private val cancelled: () -> Boolean = { false },
-    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L }
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000L },
+    private val wallMillis: () -> Long = { System.currentTimeMillis() }
 ) {
     fun submit(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {
         if (request.networkId != selected.networkId || request.protocol != protocol ||
@@ -39,7 +40,7 @@ internal class GatewayTransport(
     fun readCallbackStatus(selected: DiscoveryState.Ready): ExchangeResult {
         if (!permitted() || !LoginRequest.isGateway(selected.gateway)) return ExchangeResult.UnsupportedEndpoint
         return exchange(selected, URI(protocol.scheme, null, selected.gateway, -1,
-            "/status", "var=callBack", null), null)
+            "/status", "var=callBack&t=" + wallMillis(), null), null)
     }
 
     fun submitCallback(selected: DiscoveryState.Ready, request: Preparation.Ready): ExchangeResult {

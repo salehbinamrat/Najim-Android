@@ -20,4 +20,10 @@ class SpokenVoucherTest {
         assertNull(SpokenVoucher.candidate(List(6) { "1234" }))
         assertNull(SpokenVoucher.candidate(listOf(" ".repeat(513) + "1234")))
     }
+    @Test fun explicitReviewOffersDistinctValidAlternativesWithoutGuessing() {
+        assertEquals(listOf("0012", "0013"),
+            SpokenVoucher.reviewOptions(listOf("٠٠١٢", "zero zero one two", "0013", "unknown")))
+        assertTrue(SpokenVoucher.reviewOptions(List(6) { "1234" }).isEmpty())
+        assertTrue(SpokenVoucher.reviewOptions(listOf("1234", " ".repeat(513))).isEmpty())
+    }
 }

@@ -58,7 +58,7 @@ class NajmCallbackTest {
             var reads = 0
             val flow = NajmCallbackFlow({ if (++reads == 1) out else active("other") },
                 { _, _ -> posts++; post }, { wifi }, LoginProtocol.HTTP_PAP, true, {})
-            assertEquals(if (post == ack) GatewayLoginResult.ACCOUNT_MISMATCH else GatewayLoginResult.SESSION_UNVERIFIED,
+            assertEquals(GatewayLoginResult.ACCOUNT_MISMATCH,
                 flow.login(wifi, "0012", null))
             assertEquals(1, posts)
         }
@@ -140,5 +140,44 @@ class NajmCallbackTest {
         assertEquals(GatewayLoginResult.SESSION_UNVERIFIED, flow.login(wifi, "0012", null))
         assertEquals(6, reads)
         assertEquals(1, posts)
+    }
+    @Test fun uploadedPortalClockFormatsAndStatusFields() {
+        val response = reply("""{"logged_in":"yes","username":"0012","bytes_in":"0","bytes_out":"456","remain_bytes_total":"1024","session_time_left":"1:2:3","uptime":"5:9","action":"onStatusQuery"}""")
+        val status = NajmCallback.status(response, true) as SessionStatus.Active
+        assertEquals(3723L, status.account.metrics.timeLeftSeconds)
+        assertEquals(309L, status.account.metrics.uptimeSeconds)
+        assertEquals(0L, status.account.metrics.uploaded?.exactBytes)
+    }
+    @Test fun uploadedPortalAcceptsEquivalentLoginFlagsButNotUnknownValues() {
+        for (flag in listOf("\"yes\"", "\"YES\"", "\"true\"", "true", "1", "\"1\"")) {
+            val result = NajmCallback.status(reply("""{"logged_in":$flag,"username":"0012","action":"onStatusQuery"}"""), true)
+            assertTrue(result is SessionStatus.Active)
+        }
+        for (flag in listOf("\"no\"", "\"false\"", "false", "0", "\"0\"")) {
+            assertEquals(SessionStatus.LoggedOut, NajmCallback.status(reply("""{"logged_in":$flag,"action":"onStatusQuery"}"""), true))
+        }
+        assertEquals(SessionStatus.Unknown, NajmCallback.status(reply("""{"logged_in":"maybe","action":"onStatusQuery"}"""), true))
+        assertNull(NajmCallback.status(reply("""{"logged_in":true,"username":1,"action":"onStatusQuery"}"""), true))
+    }
+
+    @Test fun ambiguousPostResponseStillRequiresIndependentMatchingStatus() {
+        for (response in listOf(reply("<html>redirect</html>"), reply("", 302), ExchangeResult.TransportFailure)) {
+            val reads = ArrayDeque(listOf(out, active()))
+            var posts = 0
+            val flow = NajmCallbackFlow({ reads.removeFirst() }, { _, _ -> posts++; response },
+                { wifi }, LoginProtocol.HTTP_PAP, true, {})
+            assertEquals(GatewayLoginResult.LEGACY_MATCHING_SESSION, flow.login(wifi, "0012", null))
+            assertEquals(1, posts)
+            assertTrue(reads.isEmpty())
+        }
+    }
+
+    @Test fun explicitRejectionIsNotOverriddenBySubsequentStatus() {
+        var reads = 0
+        val flow = NajmCallbackFlow({ reads++; out },
+            { _, _ -> reply("""{"logged_in":"no","error_orig":"invalid%20password","action":"onLoginError"}""", 403) },
+            { wifi }, LoginProtocol.HTTP_PAP, true, {})
+        assertEquals(GatewayLoginResult.ROUTER_INVALID_PASSWORD, flow.login(wifi, "0012", "wrong"))
+        assertEquals(1, reads)
     }
 }

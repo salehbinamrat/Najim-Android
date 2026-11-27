@@ -168,4 +168,50 @@ class SessionRefreshControllerTest {
         assertEquals("2.5 GB", SessionDisplay.amount(DataAmount("2.5 GB", null)))
         assertEquals("8.00 EiB", SessionDisplay.amount(DataAmount("raw", Long.MAX_VALUE)))
     }
+    @Test fun automaticBootReadsLocalHttpWithoutSendingCredentials() {
+        val f = Fixture()
+        assertTrue(f.controller.refreshAutomatic(wifi))
+        f.finish()
+        assertEquals(1, f.calls)
+        assertEquals(LoginProtocol.HTTP_PAP, f.mode)
+        assertTrue((f.states.last() as SessionViewState.Snapshot).legacy)
+        assertEquals(0, f.logouts)
+    }
+    @Test fun cancelledOldReadCoalescesToNewestWifi() {
+        val f = Fixture()
+        val next = wifi.copy(networkId = 8)
+        f.controller.refreshAutomatic(wifi)
+        f.controller.networkChanged(next)
+        assertTrue(f.controller.refreshAutomatic(next))
+        f.finish()
+        assertEquals(SessionViewState.Loading, f.states.last())
+        f.finish()
+        assertEquals(1, f.calls)
+        assertTrue(f.states.last() is SessionViewState.Snapshot)
+    }
+    @Test fun backgroundInvalidationDropsQueuedAutomaticRead() {
+        val f = Fixture()
+        val next = wifi.copy(networkId = 8)
+        f.controller.refreshAutomatic(wifi)
+        f.controller.networkChanged(next)
+        f.controller.refreshAutomatic(next)
+        f.controller.invalidate()
+        f.finish()
+        assertEquals(0, f.calls)
+        assertTrue(f.work.isEmpty())
+        assertEquals(SessionViewState.Idle, f.states.last())
+    }
+    @Test fun automaticHttpFailureAllowsOneHttpsRead() {
+        val calls = mutableListOf<LoginProtocol>()
+        val states = mutableListOf<SessionViewState>()
+        val controller = SessionRefreshController(Executor { it.run() }, { it() },
+            { _, mode, _, _ ->
+                calls.add(mode)
+                if (mode == LoginProtocol.HTTP_PAP) SessionStatus.Unavailable
+                else SessionStatus.Active(PortalPage.AccountStatus("000123"), false)
+            }, { states.add(it) })
+        assertTrue(controller.refreshAutomatic(wifi))
+        assertEquals(listOf(LoginProtocol.HTTP_PAP, LoginProtocol.HTTPS_PAP), calls)
+        assertFalse((states.last() as SessionViewState.Snapshot).legacy)
+    }
 }
