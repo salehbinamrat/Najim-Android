@@ -48,4 +48,25 @@ class SessionStatusFlowTest {
     @Test fun generic200NotLoggedIn() {
         assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(200, "OK".toByteArray())).refresh(wifi))
     }
+    @Test fun explicitLocalHtmlRedirectIndicatesLoggedOutWithoutFollowing() {
+        assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(200,
+            "<meta http-equiv='refresh' content='0;url=/login?dst=status'>".toByteArray())).refresh(wifi))
+    }
+    @Test fun unsupportedHtmlRedirectsRemainUnknown() {
+        for (html in listOf("<meta http-equiv='refresh' content='0;url=https://evil.test/login'>",
+            "<meta http-equiv='refresh' content='30;url=/login'>",
+            "<meta http-equiv='refresh' content='0;url=/login'><form action='/logout'></form>")) {
+            assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(200, html.toByteArray())).refresh(wifi))
+        }
+    }
+    @Test fun standardLocalLoginFormAtStatusIsLoggedOut() {
+        assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(200,
+            "<form method='post' action='/login'><input name='username'></form>".toByteArray())).refresh(wifi))
+    }
+    @Test fun localHtmlRedirectMayIncludeLocalManualLoginLink() {
+        val html = "<meta http-equiv='refresh' content='0;url=/login'><a href='/login'>Login</a>"
+        assertEquals(SessionStatus.LoggedOut, flow(ExchangeResult.Received(200, html.toByteArray())).refresh(wifi))
+        assertEquals(SessionStatus.Unknown, flow(ExchangeResult.Received(200,
+            html.replace("href='/login'", "href='https://evil.test/login'").toByteArray())).refresh(wifi))
+    }
 }

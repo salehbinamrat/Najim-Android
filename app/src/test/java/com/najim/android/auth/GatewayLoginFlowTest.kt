@@ -155,4 +155,20 @@ class GatewayLoginFlowTest {
         assertEquals(GatewayLoginResult.MATCHING_SESSION, f.run())
         assertEquals(listOf("STATUS", "LOGIN", "POST", "STATUS"), f.calls)
     }
+    @Test fun localHtmlLoggedOutResponseAllowsOneExplicitLogin() {
+        val f = Fixture(wifi, listOf(html("<meta http-equiv='refresh' content='0;url=/login?dst=status'>"),
+            login, status("00Ab")), accepted)
+        assertEquals(GatewayLoginResult.MATCHING_SESSION, f.run())
+        assertEquals(listOf("STATUS", "LOGIN", "POST", "STATUS"), f.calls)
+    }
+    @Test fun supportedLoginFormAtStatusAllowsOneExplicitLogin() {
+        val f = Fixture(wifi, listOf(login, login, status("00Ab")), accepted)
+        assertEquals(GatewayLoginResult.MATCHING_SESSION, f.run())
+        assertEquals(listOf("STATUS", "LOGIN", "POST", "STATUS"), f.calls)
+    }
+    @Test fun externalHtmlRedirectCannotTriggerCredentialSubmission() {
+        val f = Fixture(wifi, listOf(html("<meta http-equiv='refresh' content='0;url=https://evil.test/login'>")), accepted)
+        assertEquals(GatewayLoginResult.BASELINE_UNKNOWN, f.run())
+        assertEquals(listOf("STATUS"), f.calls)
+    }
 }

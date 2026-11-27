@@ -95,4 +95,14 @@ class SessionMetricsTest {
     @Test fun hiddenDescendantDoesNotSupplyMetrics() {
         assertNull(metrics(row("bytes-in", "<span aria-hidden='TRUE'>999</span>")).uploaded)
     }
+    @Test fun arabicLabelsReportOnlyExplicitUnitsAndDurations() {
+        val m = metrics(row("حجم التنزيل", "5 MB") + row("حجم الرفع", "2 MB") +
+            row("حجم البيانات المتبقي", "10 GB") + row("مدة الاستخدام", "5m") + row("الزمن المتبقي", "2h"))
+        assertEquals("5 MB", m.downloaded?.reported)
+        assertEquals("2 MB", m.uploaded?.reported)
+        assertEquals("10 GB", m.remainingTotal?.reported)
+        assertEquals(300L, m.uptimeSeconds)
+        assertEquals(7200L, m.timeLeftSeconds)
+        assertNull(metrics(row("حجم البيانات المتبقي", "100")).remainingTotal)
+    }
 }

@@ -20,29 +20,21 @@ import com.najim.android.network.DiscoveryState
 internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                          enabled: Boolean, refresh: (Boolean, Boolean) -> Boolean,
                          clear: () -> Unit, logout: (SessionViewState.Snapshot, Boolean) -> Boolean) {
-    var legacy by remember(network) { mutableStateOf(false) }
-    var consent by remember(network, legacy) { mutableStateOf(false) }
+    var confirmHttp by remember(network, state) { mutableStateOf(false) }
     var confirmLogout by remember(network, state) { mutableStateOf(false) }
     val busy = state == SessionViewState.Loading || state == SessionViewState.Cancelling || state == SessionViewState.LoggingOut
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.session_title), style = MaterialTheme.typography.titleLarge)
-            CheckChoice(stringResource(R.string.session_legacy_option), legacy, enabled && !busy) {
-                legacy = it
-                consent = false
-                clear()
-            }
-            if (legacy) {
-                Text(stringResource(R.string.session_legacy_warning), color = MaterialTheme.colorScheme.error)
-                CheckChoice(stringResource(R.string.session_consent), consent, enabled && !busy) { consent = it }
-            }
-            Button(onClick = {
-                val approved = consent
-                consent = false
-                refresh(legacy, approved)
-            }, enabled = enabled && !busy && network is DiscoveryState.Ready && (!legacy || consent),
+            Button(onClick = { refresh(false, false) },
+                enabled = enabled && !busy && network is DiscoveryState.Ready,
                 modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.session_refresh))
+                Text(stringResource(R.string.session_refresh_https))
+            }
+            OutlinedButton(onClick = { confirmHttp = true },
+                enabled = enabled && !busy && network is DiscoveryState.Ready,
+                modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.session_refresh_http))
             }
             when (state) {
                 SessionViewState.Idle -> Text(stringResource(R.string.session_idle))
@@ -76,6 +68,18 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
             }
         }
     }
+    if (confirmHttp && enabled && !busy && network is DiscoveryState.Ready) {
+        AlertDialog(onDismissRequest = { confirmHttp = false },
+            title = { Text(stringResource(R.string.session_refresh_http)) },
+            text = { Text(stringResource(R.string.session_http_read_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmHttp = false
+                    refresh(true, true)
+                }) { Text(stringResource(R.string.session_http_read_button)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmHttp = false }) { Text(stringResource(R.string.logout_back)) } })
+    }
     val expected = state as? SessionViewState.Snapshot
     if (confirmLogout && expected != null && expected.status is SessionStatus.Active && enabled) {
         AlertDialog(onDismissRequest = { confirmLogout = false },
@@ -84,7 +88,6 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
             confirmButton = {
                 TextButton(onClick = {
                     confirmLogout = false
-                    consent = false
                     logout(expected, expected.legacy)
                 }) { Text(stringResource(R.string.logout_confirm_button)) }
             },
