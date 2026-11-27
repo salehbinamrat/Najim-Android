@@ -101,4 +101,17 @@
     <string name="session_unknown">تعذر تحديد حالة الجلسة من الاستجابة.</string>
     <string name="session_logged_out">تشير البوابة إلى ضرورة تسجيل الدخول.</string>
     <string name="session_snapshot_note">هذه بيانات آخر تحديث وليست قياسا لحظيا أو إثباتا لتوفر الإنترنت.</string>
+    <string name="logout_action">تسجيل الخروج</string>
+    <string name="logout_confirm">سيتم إنهاء جلسة هذا الجهاز بعد التحقق من الحساب مجددا. هل تريد المتابعة؟</string>
+    <string name="logout_confirm_http">سيتم طلب إنهاء الجلسة عبر HTTP غير المشفر. لا يمكن التأكد من هوية البوابة. هل توافق على هذه العملية فقط؟</string>
+    <string name="logout_confirm_button">تأكيد الخروج</string>
+    <string name="logout_back">رجوع</string>
+    <string name="logout_running">جار التحقق من الحساب وإنهاء الجلسة…</string>
+    <string name="logout_already">تشير البوابة إلى عدم وجود جلسة نشطة قبل الطلب.</string>
+    <string name="logout_account_changed">تغير الحساب الظاهر في البوابة. حدث الحالة قبل أي محاولة أخرى.</string>
+    <string name="logout_preflight_unknown">تعذر التحقق من الحساب قبل الخروج. لم يتم طلب إنهاء الجلسة.</string>
+    <string name="logout_unverified">تعذر تأكيد انتهاء الجلسة. قد يكون الطلب وصل. حدث حالة الجلسة قبل إعادة المحاولة.</string>
+    <string name="logout_still_active">لا تزال البوابة تعرض الجلسة. لم يتم تأكيد الخروج.</string>
+    <string name="logout_verified">تشير حالة البوابة عبر HTTPS إلى انتهاء الجلسة الحالية. يمكنك إدخال كرت جديد.</string>
+    <string name="logout_legacy_verified">تشير البوابة عبر HTTP إلى انتهاء الجلسة، لكن لا يمكن تأكيد هوية البوابة.</string>
 </resources>

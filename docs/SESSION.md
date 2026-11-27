@@ -11,3 +11,10 @@ Reference: https://help.mikrotik.com/docs/spaces/ROS/pages/87162881/Hotspot%2Bcu
 - Manual refresh only, independent per-read HTTP consent; HTTPS default. Legacy snapshots carry warning. No login credentials sent by refresh, no protocol fallback or background polling. Snapshot cleared immediately on network changes, background, mode changes, explicit clear and new login.
 - Controller serializes with login worker, rejects duplicate refresh, suppresses late results after cancel or dispose; cancellation is cooperative, not a guarantee of instant socket closure. Login and gallery controls gated during refresh. Session card is foundational; final design is Phase 08.
 - 12 JVM controller and formatting tests; no Compose or physical device verification claimed. Logout remains Phase 06C. No new library, permission or router changes.
+
+## Phase 06C — explicit confirmed logout
+- Use only fixed local POST /logout with erase-cookie=on (documented RouterOS logout parameter). No arbitrary URLs, credentials, administrator API, or router settings changes. No automatic retry or redirect following.
+- Explicit confirmation bound to the last displayed snapshot, separate HTTP consent for logout. Read fresh status on the same selected route, refuse mismatched account or unknown baseline. Submit once and independently read status again even after a lost reply. Only a same-origin logged-out redirect is evidence of session end; HTTP evidence labeled separately. Same account could reconnect between checks, and cookie deletion/RouterOS compatibility require field validation.
+- Existing controller and serial worker are reused. Clear displayed metrics immediately on starting logout, block refresh/login while busy, discard late results on lifecycle/network change. UI asks for fresh status before retrying uncertain outcomes. No new dependencies.
+- Tests are synthetic. Real logout including cookie behavior, portal variations, and UI lifecycle remain part of field acceptance.
+- Reference: https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/hotspot-customisation/

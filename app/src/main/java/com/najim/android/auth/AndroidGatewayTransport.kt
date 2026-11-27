@@ -48,6 +48,17 @@ internal class AndroidGatewayTransport(context: Context) {
             protocol, allowInsecureHttp).refresh(selected)
     }
 
+    fun logout(selected: DiscoveryState.Ready, account: String, legacy: Boolean,
+               consent: Boolean, cancelled: () -> Boolean): LogoutResult {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Network I/O requires a worker thread" }
+        val protocol = if (legacy) LoginProtocol.HTTP_PAP else LoginProtocol.HTTPS_PAP
+        val transport = createTransport(protocol, consent && legacy, cancelled)
+        val current = { if (!cancelled() && resolve(selected) != null) selected else DiscoveryState.Unavailable }
+        val status = SessionStatusFlow(transport::read, current, protocol, consent && legacy)
+        return SessionLogoutFlow(status::refresh, transport::logout, current, legacy, consent)
+            .logout(selected, account)
+    }
+
     private fun createTransport(protocol: LoginProtocol, allowInsecureHttp: Boolean,
                                 cancelled: () -> Boolean): GatewayTransport =
         GatewayTransport(
