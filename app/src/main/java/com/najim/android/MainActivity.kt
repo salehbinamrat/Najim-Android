@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.najim.android.auth.AndroidGatewayTransport
 import com.najim.android.auth.LoginAttemptController
 import com.najim.android.auth.LoginAttemptState
+import com.najim.android.auth.SessionRefreshController
+import com.najim.android.auth.SessionViewState
 import com.najim.android.network.DiscoveryState
 import com.najim.android.network.WifiDiscovery
 import com.najim.android.ui.FoundationScreen
@@ -33,6 +35,8 @@ class MainActivity : ComponentActivity() {
     private val inputGeneration = mutableStateOf(0)
     private lateinit var discovery: WifiDiscovery
     private lateinit var attempts: LoginAttemptController
+    private lateinit var session: SessionRefreshController
+    private val sessionState = mutableStateOf<SessionViewState>(SessionViewState.Idle)
     private lateinit var gallery: GalleryImport
     private val galleryState = mutableStateOf<GalleryState>(GalleryState.Idle)
     private val picker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -50,8 +54,11 @@ class MainActivity : ComponentActivity() {
             login = transport::login,
             publish = { attemptState.value = it }
         )
+        session = SessionRefreshController(loginWorker, { task -> main.post { task() } },
+            transport::refreshStatus, { sessionState.value = it })
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
+            session.networkChanged(it)
             discoveryState.value = it
         }
         enableEdgeToEdge()
@@ -61,6 +68,13 @@ class MainActivity : ComponentActivity() {
                     key(inputGeneration.value) {
                         FoundationScreen(discoveryState.value, discovery::refresh, attemptState.value,
                             lifecycleOwner = this@MainActivity,
+                            sessionState = sessionState.value,
+                            refreshSession = { legacy, consent ->
+                                if (attemptState.value == LoginAttemptState.Running ||
+                                    attemptState.value == LoginAttemptState.Cancelling ||
+                                    galleryState.value != GalleryState.Idle) false
+                                else session.refresh(discoveryState.value, legacy, consent)
+                            }, clearSession = session::invalidate,
                             galleryState = galleryState.value,
                             chooseImage = { mode ->
                                 if (gallery.beginPicker(mode)) {
@@ -69,7 +83,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             }, confirmImage = gallery::confirm, cancelImage = gallery::cancel,
                             startLogin = { user, password, mode, consent ->
-                                attempts.start(discoveryState.value, user, password, mode, consent)
+                                if (session.busy) false
+                                else {
+                                    session.invalidate()
+                                    attempts.start(discoveryState.value, user, password, mode, consent)
+                                }
                             }, cancelLogin = attempts::cancel)
                     }
                 }
@@ -84,6 +102,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         attempts.cancel()
+        session.invalidate()
         gallery.stop()
         inputGeneration.value += 1
         discovery.stop()
@@ -92,6 +111,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         attempts.dispose()
+        session.dispose()
         gallery.dispose()
         super.onDestroy()
     }

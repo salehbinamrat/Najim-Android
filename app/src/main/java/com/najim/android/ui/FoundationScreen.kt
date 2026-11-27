@@ -20,6 +20,7 @@ import com.najim.android.ocr.ScanMode
 import com.najim.android.auth.GatewayLoginResult
 import com.najim.android.auth.LoginAttemptState
 import com.najim.android.auth.LoginProtocol
+import com.najim.android.auth.SessionViewState
 import com.najim.android.domain.VoucherInput
 import com.najim.android.network.DiscoveryState
 
@@ -27,6 +28,7 @@ import com.najim.android.network.DiscoveryState
 internal fun FoundationScreen(
     network: DiscoveryState, refreshNetwork: () -> Unit, attempt: LoginAttemptState,
     lifecycleOwner: LifecycleOwner,
+    sessionState: SessionViewState, refreshSession: (Boolean, Boolean) -> Boolean, clearSession: () -> Unit,
     galleryState: GalleryState, chooseImage: (ScanMode) -> Unit, confirmImage: () -> String?, cancelImage: () -> Unit,
     startLogin: (String, String?, LoginProtocol, Boolean) -> Boolean, cancelLogin: () -> Unit
 ) {
@@ -37,7 +39,9 @@ internal fun FoundationScreen(
     var usePassword by remember { mutableStateOf(false) }
     var protocol by remember { mutableStateOf(LoginProtocol.HTTPS_PAP) }
     var consent by remember(network, username, password, protocol, usePassword) { mutableStateOf(false) }
-    val busy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
+    val loginBusy = attempt == LoginAttemptState.Running || attempt == LoginAttemptState.Cancelling
+    val sessionBusy = sessionState == SessionViewState.Loading || sessionState == SessionViewState.Cancelling
+    val busy = loginBusy || sessionBusy
     val galleryActive = galleryState != GalleryState.Idle
     val validation = VoucherInput.validate(username)
     val validPassword = !usePassword || (password.length <= 128 && password.none { it.isISOControl() } &&
@@ -48,6 +52,8 @@ internal fun FoundationScreen(
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
             Text(stringResource(R.string.foundation_notice))
             NetworkCard(network, refreshNetwork)
+            SessionCard(network, sessionState, enabled = !loginBusy && !galleryActive,
+                refresh = refreshSession, clear = clearSession)
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = VoucherInput.normalize(it) },
@@ -135,7 +141,7 @@ internal fun FoundationScreen(
                 validation.error == null && validPassword && (!protocol.requiresConsent || consent)) {
                 Text(stringResource(R.string.login_submit))
             }
-            if (busy) {
+            if (loginBusy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 OutlinedButton(onClick = cancelLogin, enabled = attempt == LoginAttemptState.Running,
                     modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.login_cancel)) }
