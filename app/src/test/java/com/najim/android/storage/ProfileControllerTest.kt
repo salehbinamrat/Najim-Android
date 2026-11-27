@@ -159,4 +159,55 @@ class ProfileControllerTest {
         f.finish()
         assertEquals(1, (f.vault.list(p.id) as VaultResult.Ok).value.size)
     }
+    @Test fun repeatedReloadsCoalesceIntoOneFollowUp() {
+        val f = savedFixture()
+        assertTrue(f.controller.refresh())
+        repeat(50) { f.controller.reload() }
+        assertEquals(1, f.work.size)
+        assertFalse(f.state.ready)
+        assertTrue(f.state.busy)
+        f.finish()
+        assertEquals(1, f.work.size)
+        f.finish()
+        assertTrue(f.state.ready)
+        assertFalse(f.state.busy)
+        assertEquals(1, f.state.cards.size)
+        assertTrue(f.work.isEmpty())
+    }
+
+    @Test fun stopCancelsPendingReloadWithoutBackgroundRead() {
+        val f = savedFixture()
+        f.controller.reload()
+        f.controller.reload()
+        f.controller.clear()
+        f.finish()
+        assertTrue(f.work.isEmpty())
+        assertFalse(f.state.ready)
+        assertFalse(f.state.busy)
+    }
+
+    @Test fun reloadAfterCancelledSaveCannotResurrectOldOperation() {
+        val f = savedFixture()
+        val profile = f.state.profiles.single()
+        val save = requireNotNull(ConfirmedVoucherSave.authorize(profile, wifi, wifi, "9999", null,
+            LoginProtocol.HTTPS_PAP, GatewayLoginResult.MATCHING_SESSION, true))
+        assertTrue(f.controller.save(save))
+        f.controller.reload()
+        f.finish()
+        f.finish()
+        assertEquals(1, f.state.cards.size)
+        assertEquals(ProfileNotice.NONE, f.state.notice)
+    }
+
+    @Test fun cancelledLoadDoesNotDeliverCredentialDuringReload() {
+        val f = savedFixture()
+        var filled = false
+        assertTrue(f.controller.loadCard(wifi, f.state.profiles.single(), f.state.cards.single()) { filled = true })
+        f.work.removeFirst().run()
+        f.controller.reload()
+        f.callbacks.removeFirst().invoke()
+        assertFalse(filled)
+        f.finish()
+        assertTrue(f.state.ready)
+    }
 }

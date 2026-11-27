@@ -14,3 +14,6 @@ Compare the candidate build against baseline on the same device, Android version
 | Data safety | Leading zeros, ambiguous input, invalid QR, failed login, profile switch | Preserve previous behavior |
 
 Use a low-memory ARM32 device and ARM64 device where available, include Android 7/API 24 and current Android. Report hardware and sample counts. Do not compare debug vs release. CI JVM tests are not substitutes for these measurements. Baseline and candidate results: **not measured**. No numerical improvement is asserted.
+
+
+Phase 10B adds stress cases: 50 consecutive catalog invalidations during a pending operation (one follow-up read at most), foreground network changes during gallery import, Activity stop with pending refresh, repeated recreation while a provider read is blocked (bounded gallery queue). Verify no credential fill after invalidation and no storage read launched by stop callback. Report actual measurements separately; provider blocking cannot be forcibly interrupted by cooperative checks.

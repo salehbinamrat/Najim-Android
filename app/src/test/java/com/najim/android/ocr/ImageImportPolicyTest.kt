@@ -36,4 +36,38 @@ class ImageImportPolicyTest {
     @Test fun mirroredAndInvalidExifRejected() {
         for (value in listOf(2,4,5,7,9,-1)) assertNull(ImageImportPolicy.rotation(value))
     }
+    @Test fun cancelledBeforeReadingDoesNotTouchProvider() {
+        val stream = object : InputStream() {
+            override fun read(): Int = error("must not read")
+        }
+        assertNull(ImageImportPolicy.readBounded(stream, cancelled = { true }))
+    }
+
+    @Test fun cancelledDuringReadDoesNotReturnPartialImage() {
+        var cancelled = false
+        var reads = 0
+        val stream = object : InputStream() {
+            override fun read(): Int = error("unexpected single-byte read")
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                reads++
+                b[off] = 1
+                cancelled = true
+                return 1
+            }
+        }
+        assertNull(ImageImportPolicy.readBounded(stream, cancelled = { cancelled }))
+        assertEquals(1, reads)
+    }
+
+    @Test fun cancellationAtEofDiscardsCompletedInput() {
+        var cancelled = false
+        val stream = object : InputStream() {
+            override fun read(): Int = -1
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                cancelled = true
+                return -1
+            }
+        }
+        assertNull(ImageImportPolicy.readBounded(stream, cancelled = { cancelled }))
+    }
 }

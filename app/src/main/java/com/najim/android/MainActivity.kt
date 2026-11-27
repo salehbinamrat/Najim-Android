@@ -44,6 +44,8 @@ class MainActivity : ComponentActivity() {
         speechPlayer.speak(cue)
     }, tonePlayer::play)
     private var resumed = false
+    private var started = false
+    private var startingDiscovery = false
     private var audioAllowed = false
     private val speechEnabled = mutableStateOf(false)
     private val speechAvailable = mutableStateOf(false)
@@ -121,11 +123,12 @@ class MainActivity : ComponentActivity() {
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
             session.networkChanged(it)
-            if (discoveryState.value != it) {
-                profiles.clear()
-                profiles.refresh()
-            }
+            val changed = discoveryState.value != it
             discoveryState.value = it
+            if (changed && started && !startingDiscovery) {
+                gallery.cancel()
+                profiles.reload()
+            }
         }
         enableEdgeToEdge()
         setContent {
@@ -286,11 +289,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        discovery.start()
-        profiles.refresh()
+        started = true
+        startingDiscovery = true
+        try { discovery.start() } finally { startingDiscovery = false }
+        profiles.reload()
     }
 
     override fun onStop() {
+        started = false
         attempts.cancel()
         profiles.clear()
         session.invalidate()
@@ -314,6 +320,9 @@ class MainActivity : ComponentActivity() {
         // Serialize requests even across Activity recreation. Never interrupt an uncertain POST and retry it.
         private val loginWorker = Executors.newSingleThreadExecutor()
         private val storageWorker = Executors.newSingleThreadExecutor()
-        private val galleryWorker = Executors.newSingleThreadExecutor()
+        private val galleryWorker = java.util.concurrent.ThreadPoolExecutor(
+            1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+            java.util.concurrent.ArrayBlockingQueue<Runnable>(1),
+            java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
     }
 }

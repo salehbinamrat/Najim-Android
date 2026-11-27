@@ -11,17 +11,21 @@ internal object ImageImportPolicy {
     private const val MAX_SOURCE_PIXELS = 100_000_000L
 
     /** Caller closes the stream. Reject rather than truncate an oversized input. */
-    fun readBounded(stream: InputStream, limit: Int = MAX_BYTES): ByteArray? {
+    fun readBounded(stream: InputStream, limit: Int = MAX_BYTES, cancelled: () -> Boolean = { false }): ByteArray? {
         require(limit in 1..MAX_BYTES)
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(8192)
-        while (true) {
-            val count = stream.read(buffer)
-            if (count == -1) return output.toByteArray().takeIf { it.isNotEmpty() }
-            if (count == 0) throw IOException("Empty stream read")
-            if (count > limit - output.size()) return null
-            output.write(buffer, 0, count)
-        }
+        try {
+            while (true) {
+                if (cancelled()) return null
+                val count = stream.read(buffer)
+                if (cancelled()) return null
+                if (count == -1) return output.toByteArray().takeIf { it.isNotEmpty() }
+                if (count == 0) throw IOException("Empty stream read")
+                if (count > limit - output.size()) return null
+                output.write(buffer, 0, count)
+            }
+        } finally { buffer.fill(0) }
     }
 
     /** Power-of-two sample size with conservative ceiling dimensions. */
