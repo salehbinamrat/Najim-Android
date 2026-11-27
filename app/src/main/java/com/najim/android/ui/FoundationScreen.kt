@@ -70,7 +70,8 @@ internal fun FoundationScreen(
     var section by remember { mutableStateOf(if (galleryActive) NajimSection.LOGIN else NajimSection.HOME) }
     LaunchedEffect(attempt) {
         if (section == NajimSection.LOGIN && attempt is LoginAttemptState.Finished &&
-            attempt.result in setOf(GatewayLoginResult.MATCHING_SESSION, GatewayLoginResult.LEGACY_MATCHING_SESSION)) {
+            attempt.result in setOf(GatewayLoginResult.MATCHING_SESSION, GatewayLoginResult.LEGACY_MATCHING_SESSION,
+                GatewayLoginResult.ALREADY_CONNECTED)) {
             passwordVisible = false
             section = NajimSection.HOME
         }

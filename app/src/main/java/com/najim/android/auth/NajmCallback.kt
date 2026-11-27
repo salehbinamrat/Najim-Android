@@ -86,7 +86,9 @@ internal class NajmCallbackFlow(
         }
         val baseline = read(selected)
         if (current() != selected || baseline == ExchangeResult.NetworkChanged) return GatewayLoginResult.NETWORK_CHANGED
-        when (NajmCallback.status(baseline, protocol.requiresConsent)) {
+        val initialStatus = NajmCallback.status(baseline, protocol.requiresConsent)
+        if (current() != selected) return GatewayLoginResult.NETWORK_CHANGED
+        when (initialStatus) {
             null -> return null
             is SessionStatus.Active -> return GatewayLoginResult.ALREADY_CONNECTED
             SessionStatus.LoggedOut -> Unit

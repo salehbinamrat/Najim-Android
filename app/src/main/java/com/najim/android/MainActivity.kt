@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private var resumed = false
     private var started = false
     private var startingDiscovery = false
+    private var attemptHttpApproved = false
     private var audioAllowed = false
     private val speechEnabled = mutableStateOf(false)
     private val speechAvailable = mutableStateOf(false)
@@ -120,9 +121,12 @@ class MainActivity : ComponentActivity() {
                     when (next.result) {
                         com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession()
                         com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION -> refreshInitialSession(true)
+                        com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED -> refreshInitialSession(attemptHttpApproved)
                         else -> Unit
                     }
                 }
+                if (next is LoginAttemptState.Finished || next == LoginAttemptState.Cancelled)
+                    attemptHttpApproved = false
             },
             saveConfirmed = { profiles.save(it) }
         )
@@ -209,7 +213,10 @@ class MainActivity : ComponentActivity() {
                                     (saveChoice != null && !profiles.accepts(saveChoice.profile))) false
                                 else {
                                     session.invalidate()
-                                    attempts.start(discoveryState.value, user, password, mode, consent, saveChoice)
+                                    attemptHttpApproved = mode.requiresConsent && consent
+                                    attempts.start(discoveryState.value, user, password, mode, consent, saveChoice).also {
+                                        if (!it) attemptHttpApproved = false
+                                    }
                                 }
                             }, cancelLogin = attempts::cancel)
                     }
@@ -319,6 +326,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         started = false
+        attemptHttpApproved = false
         attempts.cancel()
         profiles.clear()
         session.invalidate()
