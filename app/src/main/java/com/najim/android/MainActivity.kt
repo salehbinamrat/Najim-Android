@@ -77,6 +77,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Protect credentials, scanned images and subscriber session information from
+        // ordinary screenshots, screen recording and recent-task previews.
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         gallery = GalleryImport(applicationContext.contentResolver, galleryWorker) { galleryState.value = it }
         val transport = AndroidGatewayTransport(applicationContext)
         val main = Handler(Looper.getMainLooper())

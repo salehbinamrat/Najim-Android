@@ -8,6 +8,37 @@ import java.io.DataOutputStream
 import java.io.IOException
 import java.util.UUID
 
+/** Wipe the owned backing array, including old arrays when growing.
+ * DataOutputStream and immutable Strings may retain other transient copies.
+ */
+internal class WipeableVaultBuffer : ByteArrayOutputStream(1024) {
+    override fun write(b: Int) {
+        reserve(1)
+        super.write(b)
+    }
+
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        require(off >= 0 && len >= 0 && off <= b.size - len)
+        reserve(len)
+        super.write(b, off, len)
+    }
+
+    private fun reserve(extra: Int) {
+        require(extra <= VaultLimits.MAX_PLAINTEXT - count)
+        val needed = count + extra
+        if (needed > buf.size) {
+            val old = buf
+            buf = old.copyOf(maxOf(needed, minOf(VaultLimits.MAX_PLAINTEXT, old.size * 2)))
+            old.fill(0)
+        }
+    }
+
+    fun wipe() {
+        buf.fill(0)
+        reset()
+    }
+}
+
 internal object VaultCodec {
     private const val LEGACY_VERSION = 1
     private const val PROFILE_VERSION = 2
@@ -17,28 +48,33 @@ internal object VaultCodec {
 
     fun encodeDocument(document: VaultDocument): ByteArray {
         val records = document.records
-        val buffer = ByteArrayOutputStream()
-        DataOutputStream(buffer).use { out ->
-            out.writeInt(VERSION)
-            out.writeInt(document.profiles.size)
-            for (profile in document.profiles) {
-                out.writeUTF(profile.id.toString())
-                out.writeUTF(profile.name)
-                out.writeUTF(profile.gateway)
-                out.writeUTF(profile.retention.name)
+        val buffer = WipeableVaultBuffer()
+        try {
+            DataOutputStream(buffer).use { out ->
+                out.writeInt(VERSION)
+                out.writeInt(document.profiles.size)
+                for (profile in document.profiles) {
+                    out.writeUTF(profile.id.toString())
+                    out.writeUTF(profile.name)
+                    out.writeUTF(profile.gateway)
+                    out.writeUTF(profile.retention.name)
+                }
+                out.writeInt(records.size)
+                for (record in records) {
+                    out.writeUTF(record.id.toString())
+                    out.writeUTF(record.profileId.toString())
+                    out.writeUTF(record.gateway)
+                    out.writeUTF(record.protocol.name)
+                    out.writeUTF(record.username)
+                    out.writeBoolean(record.password != null)
+                    record.password?.let(out::writeUTF)
+                }
             }
-            out.writeInt(records.size)
-            for (record in records) {
-                out.writeUTF(record.id.toString())
-                out.writeUTF(record.profileId.toString())
-                out.writeUTF(record.gateway)
-                out.writeUTF(record.protocol.name)
-                out.writeUTF(record.username)
-                out.writeBoolean(record.password != null)
-                record.password?.let(out::writeUTF)
-            }
+            require(buffer.size() <= VaultLimits.MAX_PLAINTEXT)
+            return buffer.toByteArray()
+        } finally {
+            buffer.wipe()
         }
-        return buffer.toByteArray().also { require(it.size <= VaultLimits.MAX_PLAINTEXT) }
     }
 
     @Throws(IOException::class)

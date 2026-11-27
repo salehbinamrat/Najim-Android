@@ -13,4 +13,10 @@ class VoucherInputTest {
     @Test fun length() = assertEquals(VoucherInput.Error.TOO_LONG, VoucherInput.validate("a".repeat(129)).error)
     @Test fun phoneLikeIsNotRejected() = assertNull(VoucherInput.validate("771234567").error)
     @Test fun allZerosAreNotRejected() = assertNull(VoucherInput.validate("00000000").error)
+    @Test fun validationResultNeverPrintsCredential() {
+        val result = VoucherInput.validate("0012Ab")
+        assertEquals("0012Ab", result.value)
+        assertFalse(result.toString().contains("0012Ab"))
+        assertTrue(result.toString().contains("redacted"))
+    }
 }
