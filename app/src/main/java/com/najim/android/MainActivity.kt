@@ -30,8 +30,18 @@ import com.najim.android.storage.ProfileState
 import java.util.concurrent.Executors
 import com.najim.android.settings.AppearanceMode
 import com.najim.android.settings.AppearancePreferences
+import com.najim.android.feedback.AndroidTonePlayer
+import com.najim.android.feedback.FeedbackGate
+import com.najim.android.feedback.FeedbackPolicy
+import com.najim.android.feedback.FeedbackCue
 
 class MainActivity : ComponentActivity() {
+    private val tonePlayer = AndroidTonePlayer()
+    private val feedback = FeedbackGate(tonePlayer::play, tonePlayer::stop)
+    private val feedbackEnabled = mutableStateOf(false)
+    private val feedbackReady = mutableStateOf(false)
+    private val feedbackSaving = mutableStateOf(false)
+    private val feedbackFailed = mutableStateOf(false)
     private val appearance = mutableStateOf(AppearanceMode.SYSTEM)
     private val appearanceReady = mutableStateOf(false)
     private val appearanceSaving = mutableStateOf(false)
@@ -60,11 +70,16 @@ class MainActivity : ComponentActivity() {
         appearancePreferences = AppearancePreferences(applicationContext)
         storageWorker.execute {
             val loaded = runCatching { appearancePreferences.read() }
+            val audio = runCatching { appearancePreferences.readFeedbackEnabled() }
             main.post {
                 if (!isDestroyed) {
                     appearance.value = loaded.getOrDefault(AppearanceMode.SYSTEM)
                     appearanceFailed.value = loaded.isFailure
                     appearanceReady.value = true
+                    feedbackEnabled.value = audio.getOrDefault(false)
+                    feedbackFailed.value = audio.isFailure
+                    feedbackReady.value = true
+                    feedback.setEnabled(feedbackEnabled.value)
                 }
             }
         }
@@ -74,11 +89,19 @@ class MainActivity : ComponentActivity() {
             worker = loginWorker,
             dispatch = { task -> main.post { task() } },
             login = transport::login,
-            publish = { attemptState.value = it },
+            publish = { next ->
+                val previous = attemptState.value
+                attemptState.value = next
+                if (previous != next) feedback.emit(FeedbackPolicy.login(next))
+            },
             saveConfirmed = { profiles.save(it) }
         )
         session = SessionRefreshController(loginWorker, { task -> main.post { task() } },
-            transport::refreshStatus, { sessionState.value = it }, transport::logout)
+            transport::refreshStatus, { next ->
+                val previous = sessionState.value
+                sessionState.value = next
+                if (previous != next) feedback.emit(FeedbackPolicy.session(next))
+            }, transport::logout)
         discovery = WifiDiscovery(this) {
             attempts.networkChanged(it)
             session.networkChanged(it)
@@ -100,6 +123,12 @@ class MainActivity : ComponentActivity() {
                             appearanceSaving = appearanceSaving.value,
                             appearanceFailed = appearanceFailed.value,
                             changeAppearance = ::changeAppearance,
+                            feedbackEnabled = feedbackEnabled.value,
+                            feedbackReady = feedbackReady.value,
+                            feedbackSaving = feedbackSaving.value,
+                            feedbackFailed = feedbackFailed.value,
+                            changeFeedback = ::changeFeedback,
+                            scanAccepted = { feedback.emit(FeedbackCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
                             createProfile = { name -> profiles.create(discoveryState.value, name) },
@@ -169,6 +198,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun changeFeedback(enabled: Boolean) {
+        if (!feedbackReady.value || feedbackSaving.value || enabled == feedbackEnabled.value) return
+        feedbackSaving.value = true
+        feedbackFailed.value = false
+        if (!enabled) feedback.setEnabled(false)
+        val main = Handler(Looper.getMainLooper())
+        storageWorker.execute {
+            val saved = runCatching { appearancePreferences.writeFeedbackEnabled(enabled) }.getOrDefault(false)
+            main.post {
+                if (!isDestroyed) {
+                    if (saved) feedbackEnabled.value = enabled
+                    feedbackFailed.value = !saved
+                    // Fail silent if disabling could not be persisted, until explicit retry.
+                    feedback.setEnabled(saved && enabled)
+                    feedbackSaving.value = false
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        feedback.resume()
+    }
+
+    override fun onPause() {
+        feedback.pause()
+        super.onPause()
+    }
+
     override fun onStart() {
         super.onStart()
         discovery.start()
@@ -186,6 +245,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        feedback.pause()
         attempts.dispose()
         profiles.dispose()
         session.dispose()

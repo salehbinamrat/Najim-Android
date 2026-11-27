@@ -36,7 +36,7 @@ internal fun GalleryScanner(state: GalleryState, enabled: Boolean, choose: () ->
                 GalleryState.Unsupported -> Text(stringResource(R.string.qr_unsupported))
                 is GalleryState.Candidate -> {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        Text(state.value, style = MaterialTheme.typography.headlineSmall)
+                        PrivateScanText(state.value)
                     }
                     Text(stringResource(R.string.scan_confirm_hint))
                     Button(onClick = confirm, enabled = enabled, modifier = Modifier.fillMaxWidth()) {

@@ -27,21 +27,14 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.session_title), style = MaterialTheme.typography.titleLarge)
-            Row {
-                Checkbox(checked = legacy, enabled = enabled && !busy, onCheckedChange = {
-                    legacy = it
-                    consent = false
-                    clear()
-                })
-                Text(stringResource(R.string.session_legacy_option), Modifier.padding(top = 12.dp))
+            CheckChoice(stringResource(R.string.session_legacy_option), legacy, enabled && !busy) {
+                legacy = it
+                consent = false
+                clear()
             }
             if (legacy) {
                 Text(stringResource(R.string.session_legacy_warning), color = MaterialTheme.colorScheme.error)
-                Row {
-                    Checkbox(checked = consent, enabled = enabled && !busy,
-                        onCheckedChange = { consent = it })
-                    Text(stringResource(R.string.session_consent), Modifier.padding(top = 12.dp))
-                }
+                CheckChoice(stringResource(R.string.session_consent), consent, enabled && !busy) { consent = it }
             }
             Button(onClick = {
                 val approved = consent
@@ -62,7 +55,7 @@ internal fun SessionCard(network: DiscoveryState, state: SessionViewState,
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.logout_running))
                 }
-                is SessionViewState.LogoutFinished -> Text(stringResource(logoutMessage(state.result)))
+                is SessionViewState.LogoutFinished -> StatusNotice(stringResource(logoutMessage(state.result)))
                 is SessionViewState.Snapshot -> {
                     SessionSnapshot(state.status)
                     Text(stringResource(R.string.session_snapshot_note),
@@ -120,7 +113,7 @@ private fun SessionSnapshot(status: SessionStatus) {
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
                 Column(Modifier.fillMaxWidth().padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.session_active), style = MaterialTheme.typography.titleMedium)
+                    StatusNotice(stringResource(R.string.session_active))
                     Text(stringResource(R.string.session_account), style = MaterialTheme.typography.labelMedium)
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         Text(SessionDisplay.maskAccount(status.account.username),
@@ -141,7 +134,7 @@ private fun SessionSnapshot(status: SessionStatus) {
                 MetricValue(R.string.session_uptime, SessionDisplay.duration(m.uptimeSeconds))
             ))
         }
-        else -> Text(stringResource(when (status) {
+        else -> StatusNotice(stringResource(when (status) {
             SessionStatus.NetworkChanged -> R.string.login_network_changed
             SessionStatus.ConsentRequired -> R.string.login_consent_required
             SessionStatus.Unavailable -> R.string.session_unavailable
