@@ -22,6 +22,7 @@ import com.najim.android.auth.SessionRefreshController
 import com.najim.android.auth.SessionViewState
 import com.najim.android.network.DiscoveryState
 import com.najim.android.network.WifiDiscovery
+import com.najim.android.network.NetworkActionScope
 import com.najim.android.ui.FoundationScreen
 import com.najim.android.ui.NajimTheme
 import com.najim.android.storage.AndroidVault
@@ -171,6 +172,9 @@ class MainActivity : ComponentActivity() {
             attempts.networkChanged(it)
             session.networkChanged(it)
             if (changed && started && !startingDiscovery) {
+                // Even A -> B -> A before recomposition invalidates the old form,
+                // profile selection, credentials and per-attempt approvals.
+                inputGeneration.value += 1
                 gallery.cancel()
                 profiles.reload()
                 refreshInitialSession()
@@ -181,7 +185,8 @@ class MainActivity : ComponentActivity() {
             NajimTheme(appearance.value) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     key(inputGeneration.value) {
-                        FoundationScreen(discoveryState.value, {
+                        val scope = NetworkActionScope(discoveryState.value, inputGeneration.value)
+                        FoundationScreen(scope.network, {
                             val before = discoveryState.value
                             discovery.refresh()
                             if (before == discoveryState.value) refreshInitialSession()
@@ -221,21 +226,26 @@ class MainActivity : ComponentActivity() {
                             scanAccepted = { guidance.emit(SpeechCue.SCAN_ACCEPTED) },
                             profileState = profileState.value,
                             refreshProfiles = { profiles.refresh() },
-                            createProfile = { name -> profiles.create(discoveryState.value, name) },
+                            createProfile = { name ->
+                                if (!acceptsNetworkAction(scope)) false
+                                else profiles.create(scope.network, name)
+                            },
                             setRetention = { profile, mode ->
-                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                if (!acceptsNetworkAction(scope) || session.busy || attemptState.value == LoginAttemptState.Running ||
                                     attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
-                                else profiles.setRetention(discoveryState.value, profile, mode)
+                                else profiles.setRetention(scope.network, profile, mode)
                             },
                             loadCard = { profile, card, fill ->
-                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                if (!acceptsNetworkAction(scope) || session.busy || attemptState.value == LoginAttemptState.Running ||
                                     attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
-                                else profiles.loadCard(discoveryState.value, profile, card, fill)
+                                else profiles.loadCard(scope.network, profile, card) { record ->
+                                    if (acceptsNetworkAction(scope)) fill(record)
+                                }
                             },
                             deleteCard = { profile, card ->
-                                if (session.busy || attemptState.value == LoginAttemptState.Running ||
+                                if (!acceptsNetworkAction(scope) || session.busy || attemptState.value == LoginAttemptState.Running ||
                                     attemptState.value == LoginAttemptState.Cancelling || galleryState.value != GalleryState.Idle) false
-                                else profiles.deleteCard(discoveryState.value, profile, card)
+                                else profiles.deleteCard(scope.network, profile, card)
                             },
                             sessionState = sessionState.value,
                             statusDiagnostics = statusDiagnostics.value,
@@ -259,12 +269,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             }, confirmImage = gallery::confirm, cancelImage = gallery::cancel,
                             startLogin = { user, password, mode, consent, saveChoice ->
-                                if (session.busy || profiles.busy ||
+                                if (!acceptsNetworkAction(scope) || session.busy || profiles.busy ||
                                     (saveChoice != null && !profiles.accepts(saveChoice.profile))) false
                                 else {
                                     session.invalidate()
                                     attemptHttpApproved = mode.requiresConsent && consent
-                                    attempts.start(discoveryState.value, user, password, mode, consent, saveChoice).also {
+                                    attempts.start(scope.network, user, password, mode, consent, saveChoice).also {
                                         if (!it) attemptHttpApproved = false
                                     }
                                 }
@@ -274,6 +284,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun acceptsNetworkAction(scope: NetworkActionScope): Boolean =
+        scope.permits(discoveryState.value, inputGeneration.value, started)
 
     private fun changeAppearance(mode: AppearanceMode) {
         if (!appearanceReady.value || appearanceSaving.value || mode == appearance.value) return
