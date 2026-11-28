@@ -13,43 +13,52 @@ import android.os.Looper
 class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> Unit) {
     private val manager = context.getSystemService(ConnectivityManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
+    private val gate = DiscoveryRefreshGate()
     private var started = false
-    private var wifiRegistered = false
-    private var defaultRegistered = false
-    private val refreshTask = Runnable { if (started) refresh() }
+    private var wifiListener: ConnectivityManager.NetworkCallback? = null
+    private var defaultListener: ConnectivityManager.NetworkCallback? = null
 
-    private fun scheduleRefresh() {
-        handler.removeCallbacks(refreshTask)
-        handler.post(refreshTask)
+    private fun scheduleRefresh(lifetime: DiscoveryRefreshGate.Lifetime) {
+        if (!gate.request(lifetime)) return
+        // Do not remove a different callback's queued task. Consume before capture,
+        // so a change during capture can schedule exactly one follow-up.
+        if (!handler.post {
+                if (gate.consume(lifetime) && started) refresh()
+            }) gate.consume(lifetime)
     }
 
-    private fun listener() = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) = scheduleRefresh()
-        override fun onLost(network: Network) = scheduleRefresh()
-        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = scheduleRefresh()
-        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) = scheduleRefresh()
+    private fun listener(lifetime: DiscoveryRefreshGate.Lifetime) = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = scheduleRefresh(lifetime)
+        override fun onLost(network: Network) = scheduleRefresh(lifetime)
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = scheduleRefresh(lifetime)
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) = scheduleRefresh(lifetime)
     }
-
-    private val wifiListener = listener()
-    private val defaultListener = listener()
 
     fun start() {
         if (started) return
         started = true
+        val lifetime = gate.start()
         val cm = manager
         if (cm != null) {
+            // A failed Wi-Fi registration must not prevent default monitoring.
+            val wifi = listener(lifetime)
             try {
                 val request = NetworkRequest.Builder()
                     // API 21-compatible; do not require INTERNET or VALIDATED.
                     .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
                     .removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
                     .addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
-                cm.registerNetworkCallback(request, wifiListener)
-                wifiRegistered = true
-                cm.registerDefaultNetworkCallback(defaultListener)
-                defaultRegistered = true
+                cm.registerNetworkCallback(request, wifi)
+                wifiListener = wifi
             } catch (_: RuntimeException) {
-                // Manual refresh remains available if monitoring cannot be registered.
+                // Manual refresh and the independent default monitor remain available.
+            }
+            val default = listener(lifetime)
+            try {
+                cm.registerDefaultNetworkCallback(default)
+                defaultListener = default
+            } catch (_: RuntimeException) {
+                // Manual refresh and any registered Wi-Fi monitor remain available.
             }
         }
         refresh()
@@ -57,19 +66,23 @@ class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> U
 
     fun stop() {
         started = false
-        handler.removeCallbacks(refreshTask)
-        if (wifiRegistered) unregister(wifiListener)
-        if (defaultRegistered) unregister(defaultListener)
-        wifiRegistered = false
-        defaultRegistered = false
+        // Invalidate before unregistering: callbacks already in flight or queued
+        // may still arrive, but cannot acquire the next monitoring lifetime.
+        gate.stop()
+        val wifi = wifiListener
+        val default = defaultListener
+        wifiListener = null
+        defaultListener = null
+        wifi?.let(::unregister)
+        default?.let(::unregister)
         publish(DiscoveryState.Unavailable)
     }
 
     private fun unregister(callback: ConnectivityManager.NetworkCallback) {
         try {
             manager?.unregisterNetworkCallback(callback)
-        } catch (_: IllegalArgumentException) {
-            // Already unregistered.
+        } catch (_: RuntimeException) {
+            // Continue cleanup of the other listener; stale callbacks are gated.
         }
     }
 
@@ -87,5 +100,4 @@ class WifiDiscovery(context: Context, private val publish: (DiscoveryState) -> U
         }
         publish(state)
     }
-
 }

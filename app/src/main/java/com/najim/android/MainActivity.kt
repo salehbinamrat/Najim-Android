@@ -165,10 +165,11 @@ class MainActivity : ComponentActivity() {
                 }
             }, transport::logout)
         discovery = WifiDiscovery(this) {
+            val changed = discoveryState.value != it
+            // Publish the new selection before synchronous controller notifications.
+            discoveryState.value = it
             attempts.networkChanged(it)
             session.networkChanged(it)
-            val changed = discoveryState.value != it
-            discoveryState.value = it
             if (changed && started && !startingDiscovery) {
                 gallery.cancel()
                 profiles.reload()

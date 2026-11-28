@@ -162,3 +162,6 @@ Android Core and Release Preflight remain parallel; no merge if any required che
 
 ## Phase 16A — consistent network selection and VPN state
 PR46 verified run 46158250188 and merged abc70da645a99842988e8b45dd1aa449cc770a13. Correct mismatch between UI discovery Ready and transport VPN block; explicit state prevents login/session start while blocked, unstable default snapshot rejected, duplicate handles rejected and equal IP across distinct networks remains isolated in route selection. Five JVM policy tests; no new dependency or permission. Actual Android callback timing, VPN modes and profile identity remain follow-up work; field acceptance pending. See NETWORK-DISCOVERY.md.
+
+## Phase 16B — monitoring lifetime isolation
+PR47 passed both jobs in 46162884954 and merged 11eea135a462b84d6674edcb5ab717940286dd39. Fresh listeners per foreground lifetime, bounded coalescing and stale callback rejection, independent registration and cleanup, current selection published before controller notifications. Six JVM regression tests; no runtime library, permission, router or credential policy changes. Actual platform callback delivery and device acceptance pending. Next: profile isolation (16C). See NETWORK-DISCOVERY.md.
