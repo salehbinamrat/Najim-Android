@@ -165,3 +165,6 @@ PR46 verified run 46158250188 and merged abc70da645a99842988e8b45dd1aa449cc770a1
 
 ## Phase 16B — monitoring lifetime isolation
 PR47 passed both jobs in 46162884954 and merged 11eea135a462b84d6674edcb5ab717940286dd39. Fresh listeners per foreground lifetime, bounded coalescing and stale callback rejection, independent registration and cleanup, current selection published before controller notifications. Six JVM regression tests; no runtime library, permission, router or credential policy changes. Actual platform callback delivery and device acceptance pending. Next: profile isolation (16C). See NETWORK-DISCOVERY.md.
+
+## Phase 16C — network-bound UI actions and saved profiles
+PR48 verified run 46167161055 and merged a3b664fb5154bdc98caa30861a0023e44ea06fbe. Capture rendered network and input generation for profile operations and login, reject stale callbacks and recheck before filling saved credentials. Observed foreground network transitions reset form/profile/consent, even when the original handle and IP return before recomposition. Manual re-selection, five-card retention, vault format and encrypted records preserved; no new permissions/dependencies. Five JVM tests. This does not authenticate a network identity; field acceptance pending. Next Phase 17: authentication compatibility and independent confirmation.

@@ -163,7 +163,7 @@
     <string name="logout_verified">تشير حالة البوابة عبر HTTPS إلى انتهاء الجلسة الحالية. يمكنك إدخال كرت جديد.</string>
     <string name="logout_legacy_verified">تشير البوابة عبر HTTP إلى انتهاء الجلسة، لكن لا يمكن تأكيد هوية البوابة.</string>
     <string name="profile_title">ملفات الشبكات والحفظ الآمن</string>
-    <string name="profile_identity_warning">اختر شبكتك يدويا. تشابه عنوان البوابة لا يثبت هوية الشبكة.</string>
+    <string name="profile_identity_warning">اختر ملف شبكتك يدويا بعد التأكد منها. تشابه عنوان البوابة لا يثبت هوية الشبكة. عند تغير الاتصال يلزم اختيار الملف من جديد.</string>
     <string name="profile_none">دون ملف تعريفي</string>
     <string name="profile_name">اسم الشبكة الذي تختاره</string>
     <string name="profile_create">إنشاء ملف للشبكة الحالية</string>
