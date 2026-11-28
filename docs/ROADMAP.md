@@ -131,3 +131,31 @@ PR43 passed both jobs in 45987720860 and merged c657595a44ddc0cea8fbf8ab9faf6607
 
 ## Credential and response integrity follow-up
 PR44 verified and merged a83fe00c3347b9e42f8f5a3396b68b2e50d23c12 (run 46079866756). Reject malformed UTF-16 before credential encoding, supplementary invisible FORMAT code points and replacement characters in username; preserve valid Unicode and spaces in passwords; share password validation between UI and transport. Strict bounded UTF-8 decoding for callback, HTML, error and redirect evidence. HTTPS login success refresh remains HTTPS; after cancelled login drains, read current network status without replaying credentials. Five new JVM tests. No permission/dependency changes. Field acceptance pending; periodic refresh and CHAP callback remain separate follow-up work.
+
+
+## Phase 15A — approved professional roadmap and baseline (2026-11-28)
+PR45 merged at 911888d371cdaf167811ea1e7b11e361fb6b2413; exact head 86be4d16fc19cb5b5c3ed5c938ff27f473625036 passed both jobs in run 46081153673. No field success implied.
+Baseline tree inventory: 136 tracked files, 65 production Kotlin files, 33 JVM test files, 13 documentation files, zero androidTest files. Kotlin/Compose, API 24 minimum, target/compile 35, four Full/Lite ARM32/ARM64 variants. Existing debug APKs are test-signed; four release candidates are unsigned.
+- Historical failure evidence (failure runs returned by API): 45889444306 SDK provisioning exit 127; 45889717478 Maven Central HTTP 429 resolving Gradle dependencies; 45891453836 API 30 clearCapabilities called with min API 24 (Lint NewApi); 45959484841 normalized invisible characters in account evidence (368/369 passed). Existing guards: SDK setup and prerequisite checks, bounded 429-only retry, all-variant Lint, raw identity regression tests. No failures waived.
+- New evidence gate after Gradle tests/Lint in both jobs: require all eight JVM XML report directories, nonzero executed tests, zero failures/errors/skips and consistent case counts. Seven synthetic Python unit tests cover gate success, missing, empty, failed/skipped, malformed and inconsistent evidence. No runtime dependencies or app changes. Fresh CI pending. This gate does not prove coverage or replace actual device tests.
+- Remaining risks: P0 field startup/auth/session on actual RouterOS 6.49.x + UM v6; P0 cross-network/cancellation/HTTP credential safety; P1 custom CHAP callback needs actual fixture; P1 voice providers and model availability; P1 emulator/device lifecycle and 16KB; P1 reproducible Gradle wrapper and build-plugin/native dependency security; P2 MainActivity responsibilities and measured performance. No code removal without evidence; no production router changes.
+- Performance baseline not measured; use PERFORMANCE.md with same device/build/ABI and sanitized synthetic cards, record median/p95, memory, scan accuracy and battery. No target claimed achieved. Field and signature/license gates remain pending.
+
+### Approved continuation (phases 15–28)
+| Phase | Deliverable / acceptance gate |
+|---|---|
+| 15 | Baseline, failure/risk register, enforce test evidence; CI and record unresolved measurements |
+| 16 | Network discovery: actual Wi-Fi selection, same-IP network isolation, VPN, lifecycle and no stale requests |
+| 17 | Auth: explicit modes, JSON/HTML/CHAP/HTTPS, no duplicate POST, independent exact session confirmation |
+| 18 | Session: automatic read, exact counters, no fabricated quota, bounded foreground refresh |
+| 19 | Typed failures and redacted diagnostics with regression cases |
+| 20 | Camera/OCR/QR/gallery accuracy and bounded resource use, Full/Lite fallback |
+| 21 | Voice: explicit consent, local availability, no secrets spoken or automatic login |
+| 22 | Encrypted per-network five-card retention, atomicity and upgrade recovery |
+| 23 | Incremental architecture/UI separation, RTL and accessibility, no behavior regression |
+| 24 | Measured performance and old/modern Android compatibility, 16KB runtime |
+| 25 | MASVS-aligned security, supply chain, permissions, transport and license review |
+| 26 | Actual signed candidate device/router acceptance matrix; lab vouchers only |
+| 27 | Reproducible builds, exact variant audits, signatures and SHA-256; tests before packaging |
+| 28 | Owner-approved stable release after all required gates, no automatic publication |
+Android Core and Release Preflight remain parallel; no merge if any required check fails or is missing. NetPass/Najm references retained in REFERENCE-REVIEW.md; independent implementation, license review before incorporating external code. No new project documentation files necessary.
