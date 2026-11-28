@@ -9,6 +9,23 @@ class WifiSelectorTest {
     private val first = WifiLink(1L, listOf("10.0.3.1"))
     private val second = WifiLink(2L, listOf("192.168.88.1"))
 
+    @Test fun activeVpnBlocksEvenWithUniqueWifi() {
+        assertEquals(DiscoveryState.VpnBlocked, WifiSelector.select(listOf(first), 9L, vpnActive = true))
+    }
+    @Test fun vpnBlocksBeforeRouteSelection() {
+        assertEquals(DiscoveryState.VpnBlocked, WifiSelector.select(emptyList(), 9L, vpnActive = true, activeStable = false))
+    }
+    @Test fun unstableDefaultDoesNotPublishReady() {
+        assertEquals(DiscoveryState.Unavailable, WifiSelector.select(listOf(first), 1L, activeStable = false))
+    }
+    @Test fun duplicateNetworkHandlesFailClosed() {
+        assertEquals(DiscoveryState.AmbiguousWifi, WifiSelector.select(listOf(first, WifiLink(1L, listOf("192.168.88.1"))), 1L))
+    }
+    @Test fun identicalGatewayOnDifferentNetworksPreservesHandle() {
+        val sameGateway = WifiLink(2L, first.defaultIpv4Gateways)
+        assertEquals(DiscoveryState.Ready(2L, "10.0.3.1"), WifiSelector.select(listOf(first, sameGateway), 2L))
+        assertEquals(DiscoveryState.AmbiguousWifi, WifiSelector.select(listOf(first, sameGateway), 9L))
+    }
     @Test fun noWifi() = assertEquals(DiscoveryState.NoWifi, WifiSelector.select(emptyList(), 9L))
     @Test fun activeWifiPreferred() = assertEquals(DiscoveryState.Ready(2L, "192.168.88.1"), WifiSelector.select(listOf(first, second), 2L))
     @Test fun cellularDefaultDoesNotHideWifi() = assertEquals(DiscoveryState.Ready(1L, "10.0.3.1"), WifiSelector.select(listOf(first), 9L))

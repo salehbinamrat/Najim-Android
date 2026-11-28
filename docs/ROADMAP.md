@@ -159,3 +159,6 @@ Baseline tree inventory: 136 tracked files, 65 production Kotlin files, 33 JVM t
 | 27 | Reproducible builds, exact variant audits, signatures and SHA-256; tests before packaging |
 | 28 | Owner-approved stable release after all required gates, no automatic publication |
 Android Core and Release Preflight remain parallel; no merge if any required check fails or is missing. NetPass/Najm references retained in REFERENCE-REVIEW.md; independent implementation, license review before incorporating external code. No new project documentation files necessary.
+
+## Phase 16A — consistent network selection and VPN state
+PR46 verified run 46158250188 and merged abc70da645a99842988e8b45dd1aa449cc770a13. Correct mismatch between UI discovery Ready and transport VPN block; explicit state prevents login/session start while blocked, unstable default snapshot rejected, duplicate handles rejected and equal IP across distinct networks remains isolated in route selection. Five JVM policy tests; no new dependency or permission. Actual Android callback timing, VPN modes and profile identity remain follow-up work; field acceptance pending. See NETWORK-DISCOVERY.md.

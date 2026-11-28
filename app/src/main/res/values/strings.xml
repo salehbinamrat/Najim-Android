@@ -11,6 +11,7 @@
     <string name="network_ambiguous">توجد عدة شبكات Wi-Fi. لا يمكن تحديد الشبكة بأمان.</string>
     <string name="network_no_gateway">لا توجد بوابة IPv4 افتراضية مكتشفة</string>
     <string name="network_ambiguous_gateway">توجد عدة بوابات IPv4. يلزم التحقق من الشبكة.</string>
+    <string name="network_vpn_blocked">اتصال VPN نشط. أوقفه للتحقق من بوابة الشبكة بأمان.</string>
     <string name="network_unavailable">تعذر قراءة معلومات الشبكة</string>
     <string name="network_gateway">بوابة IPv4 المكتشفة</string>
     <string name="network_not_authenticated">اكتشاف البوابة لا يعني تسجيل الدخول أو توفر الإنترنت.</string>

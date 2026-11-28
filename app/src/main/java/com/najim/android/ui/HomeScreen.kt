@@ -40,6 +40,7 @@ private fun NetworkCard(network: DiscoveryState, refresh: () -> Unit) {
                 DiscoveryState.AmbiguousWifi -> R.string.network_ambiguous
                 DiscoveryState.NoGateway -> R.string.network_no_gateway
                 DiscoveryState.AmbiguousGateway -> R.string.network_ambiguous_gateway
+                DiscoveryState.VpnBlocked -> R.string.network_vpn_blocked
                 DiscoveryState.Unavailable -> R.string.network_unavailable
                 is DiscoveryState.Ready -> R.string.network_gateway
             }

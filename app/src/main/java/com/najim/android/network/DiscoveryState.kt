@@ -8,6 +8,7 @@ sealed interface DiscoveryState {
     data object AmbiguousWifi : DiscoveryState
     data object NoGateway : DiscoveryState
     data object AmbiguousGateway : DiscoveryState
+    data object VpnBlocked : DiscoveryState
     data object Unavailable : DiscoveryState
     data class Ready(val networkId: Long, val gateway: String) : DiscoveryState
 }
@@ -15,7 +16,13 @@ sealed interface DiscoveryState {
 internal data class WifiLink(val id: Long, val defaultIpv4Gateways: List<String>)
 
 internal object WifiSelector {
-    fun select(links: List<WifiLink>, activeId: Long?): DiscoveryState {
+    fun select(links: List<WifiLink>, activeId: Long?, vpnActive: Boolean = false,
+               activeStable: Boolean = true): DiscoveryState {
+        // Discovery and transport share this policy. A VPN or changing default
+        // network must never publish a usable route from an inconsistent snapshot.
+        if (vpnActive) return DiscoveryState.VpnBlocked
+        if (!activeStable) return DiscoveryState.Unavailable
+        if (links.map { it.id }.distinct().size != links.size) return DiscoveryState.AmbiguousWifi
         val wifi = links.firstOrNull { it.id == activeId } ?: when (links.size) {
             0 -> return DiscoveryState.NoWifi
             1 -> links.single()
