@@ -34,7 +34,7 @@ internal object PortalParser {
             page.rawFragment != null || page.rawPath !in setOf("/login", "/status")) {
             return PortalPage.Unknown
         }
-        val doc = Jsoup.parse(html.toString(Charsets.UTF_8), page.toString())
+        val doc = Jsoup.parse(PortalText.decode(html) ?: return PortalPage.Unknown, page.toString())
         if (doc.select("base").isNotEmpty()) return PortalPage.Unknown
         val refresh = doc.select("meta[http-equiv=refresh]")
         // Numeric refresh intervals are inert; URL redirects are rejected.

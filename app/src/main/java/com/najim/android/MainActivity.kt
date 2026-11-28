@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
                 // that same successful attempt only, never a later automatic downgrade.
                 if (started && next is LoginAttemptState.Finished && ::session.isInitialized) {
                     when (next.result) {
-                        com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession()
+                        com.najim.android.auth.GatewayLoginResult.MATCHING_SESSION -> refreshInitialSession(false)
                         com.najim.android.auth.GatewayLoginResult.LEGACY_MATCHING_SESSION -> refreshInitialSession(true)
                         com.najim.android.auth.GatewayLoginResult.ALREADY_CONNECTED,
                         com.najim.android.auth.GatewayLoginResult.SESSION_UNVERIFIED -> refreshInitialSession(attemptHttpApproved)
@@ -144,6 +144,10 @@ class MainActivity : ComponentActivity() {
                 }
                 if (next is LoginAttemptState.Finished || next == LoginAttemptState.Cancelled)
                     attemptHttpApproved = false
+                // Discovery may have changed while the old login worker was cancelling.
+                // Once it drains, read only the current network, never replay credentials.
+                if (next == LoginAttemptState.Cancelled && started && ::session.isInitialized)
+                    refreshInitialSession()
             },
             saveConfirmed = { profiles.save(it) }
         )

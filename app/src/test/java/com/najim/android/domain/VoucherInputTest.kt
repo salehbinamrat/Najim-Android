@@ -19,4 +19,10 @@ class VoucherInputTest {
         assertFalse(result.toString().contains("0012Ab"))
         assertTrue(result.toString().contains("redacted"))
     }
+    @Test fun malformedSurrogatesAndSupplementaryFormatAreRejected() {
+        for (raw in listOf("12\uD80034", "12\uDC0034", "12\uDB40\uDC0134", "12\uFFFD34")) {
+            assertEquals(VoucherInput.Error.CONTROL_CHARACTER, VoucherInput.validate(raw).error)
+        }
+        assertNull(VoucherInput.validate("A\uD83D\uDE0034").error)
+    }
 }
