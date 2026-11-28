@@ -12,3 +12,8 @@ NetPass reference: gateway discovery via ConnectivityManager. Independent implem
 - Before each change, verify API introduction levels against Android SDK documentation; guard newer calls with SDK_INT or use supported alternatives. No NewApi suppression or baseline hiding errors.
 - Both CI paths publish lint and test reports even when verification fails. Do not merge until both checks succeed on the exact PR head. SDK provisioning and bounded Maven 429 retries remain in place.
 - Physical API 24+ Wi-Fi lifecycle tests are still pending.
+
+## Phase 16A — consistent discovery and VPN blocking
+- Phase 15A verified run 46158250188, both jobs passed; merged abc70da645a99842988e8b45dd1aa449cc770a13.
+- Discovery previously published Ready with an active default VPN while transport refused it. Publish explicit VpnBlocked, no selected Network; UI explains the block. Existing controllers cancel stale work when discovery stops being Ready. No process-wide binding, permission, DNS, proxy or protocol changes.
+- Recheck default network and Wi-Fi capability after enumerating candidates; unknown active capabilities or inconsistent snapshot fails closed. Duplicate handles fail closed. Same gateway with distinct handles remains distinct. Five JVM policy tests. Platform capture is not an atomic OS transaction; existing per-request network resolution still required. No claim that every VPN mode is detectable; only VPN reported on active default network. Real device tests pending, including cellular default, always-on VPN and network switching. Persistent profile identity is a separate concern: gateway IP alone is not a stable cross-network identifier; do not add automatic credential selection.
